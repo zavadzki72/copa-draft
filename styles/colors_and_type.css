@@ -1,0 +1,121 @@
+/* ============================================================
+   MARCCU'S COPA — Colors & Type
+   World Cup edition of the Marccusz personal design system.
+   Same DNA (dark dev aesthetic, Archivo, pill buttons, elastic
+   easing) recolored with Brazil's national palette.
+   ============================================================ */
+
+/* Archivo — load from Google Fonts. Weights 400/500/600/700 */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');
+/* Open Props easings — source of the elastic micro-animations */
+@import url('https://unpkg.com/open-props/easings.min.css');
+
+:root {
+  /* ---------- BRAND PALETTE (Brazil) ---------- */
+  --green:        #00A859;  /* primary accent — buttons, links, active */
+  --green-bright: #2BD97B;  /* hover / glow on dark backgrounds */
+  --green-deep:   #047A41;  /* pressed / deep fills */
+  --yellow:       #FFDF00;  /* secondary accent — highlights, key CTAs (use sparingly) */
+  --yellow-deep:  #E5C500;  /* yellow hover / borders */
+  --blue:         #2563EB;  /* support — links / info (brightened flag blue) */
+  --blue-bright:  #4F86FF;  /* blue hover on dark */
+
+  /* ---------- SURFACES (dark, green-tinted) ---------- */
+  --bg:        #0D120E;  /* page background, near-black w/ green tint */
+  --surface-1: #151B16;  /* cards, panels */
+  --surface-2: #1E261F;  /* raised surfaces, hover rows, inputs */
+  --surface-3: #283328;  /* borders-as-fill, active chips */
+  --hairline:  #2A352B;  /* 1px borders / dividers */
+
+  /* ---------- TEXT ---------- */
+  --fg1: #FFFFFF;  /* primary text */
+  --fg2: #9CA3AF;  /* secondary / muted text */
+  --fg3: #6B7280;  /* tertiary / captions / placeholders */
+  --on-yellow: #0D120E;  /* near-black text used ON yellow fills */
+  --on-green:  #08130C;  /* near-black text used ON solid green fills */
+
+  /* ---------- STATUS ---------- */
+  --win:  #2BD97B;
+  --draw: #FFDF00;
+  --loss: #E5484D;
+
+  /* ---------- TYPE FAMILY ---------- */
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Archivo', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* ---------- TYPE SCALE ---------- */
+  --fs-display: 3rem;     /* 48px — section heroes (h2 in source) */
+  --fs-h1:      2.5rem;   /* 40px */
+  --fs-h2:      1.6rem;   /* ~26px */
+  --fs-h3:      1.4rem;   /* ~22px */
+  --fs-h4:      1.2rem;   /* ~19px — also nav size */
+  --fs-body:    1rem;     /* 16px */
+  --fs-sm:      0.9rem;   /* 14px */
+  --fs-xs:      0.7rem;   /* 11px — badges, eyebrow caps */
+
+  --fw-regular: 400;
+  --fw-medium:  500;   /* most headings in source are 500 */
+  --fw-semibold:600;
+  --fw-bold:    700;
+
+  --lh-tight: 1.15;
+  --lh-body:  1.6;
+
+  /* ---------- RADII ---------- */
+  --r-sm:   4px;    /* chips, language switcher, skill tiles */
+  --r-md:   8px;    /* small buttons / links */
+  --r-card: 16px;   /* primary card radius (12–16px range) */
+  --r-pill: 50px;   /* pill buttons & outline CTAs */
+
+  /* ---------- SPACING (rem-based, matches source rhythm) ---------- */
+  --sp-1: 0.5rem;
+  --sp-2: 1rem;
+  --sp-3: 1.5rem;
+  --sp-4: 2rem;
+  --sp-6: 3rem;
+  --sp-8: 4rem;
+  --sp-12: 8rem;   /* big section padding in source */
+
+  /* ---------- SHADOWS / GLOW ---------- */
+  --shadow-card: 0 5px 15px rgba(0,0,0,0.2);
+  --shadow-lift: 0 20px 40px rgba(0,168,89,0.15), 0 0 60px rgba(0,168,89,0.05);
+  --glow-green:  0 4px 15px rgba(0,168,89,0.30);
+  --glow-yellow: 0 4px 15px rgba(255,223,0,0.25);
+
+  /* ---------- EASING (the signature elastic micro-anims) ---------- */
+  --ease-pop:     cubic-bezier(0.25, 1.15, 0.35, 1.15);  /* tooltip / scale-in pop */
+  --ease-smooth:  cubic-bezier(0, 0.99, 0.44, 0.99);     /* soft settle */
+  --ease-line:    cubic-bezier(0.86, 0, 0.07, 1);        /* nav underline sweep */
+  /* --ease-elastic-3 / --ease-elastic-4 come from Open Props above */
+}
+
+/* ============================================================
+   SEMANTIC BASE
+   ============================================================ */
+.copa-scope {
+  font-family: var(--font-sans);
+  color: var(--fg1);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.copa-scope h1, .h1 { font-size: var(--fs-h1); font-weight: var(--fw-medium); line-height: var(--lh-tight); }
+.copa-scope h2, .h2 { font-size: var(--fs-display); font-weight: var(--fw-medium); line-height: var(--lh-tight); }
+.copa-scope h3, .h3 { font-size: var(--fs-h3); font-weight: var(--fw-semibold); }
+.copa-scope h4, .h4 { font-size: var(--fs-h4); font-weight: var(--fw-medium); }
+.copa-scope p,  .p  { font-size: var(--fs-body); line-height: var(--lh-body); color: var(--fg2); }
+
+/* Eyebrow / section label — green, like ":about-me" in source */
+.eyebrow { color: var(--green-bright); font-weight: var(--fw-medium); font-size: var(--fs-sm); }
+
+/* Code-token label — the signature ":jogos / :tabela / :craques" motif */
+.token {
+  font-family: var(--font-mono);
+  color: var(--green-bright);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.01em;
+}
+.token::before { content: ':'; opacity: 0.7; }
+
+::selection { background: var(--green); color: var(--fg1); }
