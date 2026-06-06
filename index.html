@@ -4,10 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Copa Draft — Monte o time dos sonhos</title>
+
+  <!-- Apply the saved (or system) theme BEFORE first paint to avoid a flash.
+       The definitive theme state is owned by app.jsx; this only pre-sets the
+       data-theme attribute the CSS tokens key off. -->
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem('copa_draft_profile_v1') || '{}');
+        var t = (p && (p.theme === 'light' || p.theme === 'dark')) ? p.theme
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+
   <link rel="stylesheet" href="game.css">
 
   <!-- engine + data (plain scripts, order matters) -->
   <script src="config.js"></script>
+  <script src="lib/i18n.js"></script>
   <script src="lib/rng.js"></script>
   <script src="lib/derive.js"></script>
   <script src="lib/ratings.js"></script>
@@ -33,7 +51,9 @@
   <script type="text/babel" src="ui/draft.jsx"></script>
   <script type="text/babel" src="ui/match.jsx"></script>
   <script type="text/babel" src="ui/penalty.jsx"></script>
+  <script type="text/babel" src="ui/modal.jsx"></script>
   <script type="text/babel" src="ui/post.jsx"></script>
+  <script type="text/babel" src="ui/group.jsx"></script>
   <script type="text/babel" src="app.jsx"></script>
 </body>
 </html>

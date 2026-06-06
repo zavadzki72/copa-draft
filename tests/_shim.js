@@ -17,7 +17,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 
 // load order mirrors index.html (config → rng → derive → engine → ratings)
-['config.js', 'lib/rng.js', 'lib/derive.js', 'lib/team.js', 'lib/engine.js', 'lib/ratings.js', 'lib/stats.js'].forEach(rel => {
+['config.js', 'lib/i18n.js', 'lib/rng.js', 'lib/derive.js', 'data/squads.js', 'lib/team.js', 'lib/engine.js', 'lib/ratings.js', 'lib/stats.js'].forEach(rel => {
   const code = fs.readFileSync(path.join(root, rel), 'utf8');
   vm.runInContext(code, sandbox, { filename: rel });
 });

@@ -9,6 +9,7 @@
    ============================================================ */
 function DraftScreen({ formation, mode, sfx, onConfirm }) {
   const C = window.CONFIG;
+  const t = (k, v) => window.I18N.t(k, v);
   const beep = sfx || (() => {});
   const slots = useMemo(() => window.TEAM.draftSlots(formation), [formation]);
   const total = slots.length;
@@ -36,6 +37,17 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
 
   const sameGroup = (a, b) => a.pos === b.pos;
 
+  // interactive (non-seeded) weighted pick: stronger selections come up a touch
+  // more often (CONFIG.DRAFT_STRENGTH_BIAS). Never excludes an eligible squad.
+  function weightedPickSquad(squads) {
+    const C = window.CONFIG;
+    const weights = squads.map(sq => window.TEAM.squadDrawWeight(sq, C));
+    const total = weights.reduce((s, w) => s + w, 0);
+    let t = Math.random() * total;
+    for (let i = 0; i < squads.length; i++) { t -= weights[i]; if (t <= 0) return squads[i]; }
+    return squads[squads.length - 1];
+  }
+
   function doDraw() {
     setStep('rolling');
     beep('dice');
@@ -44,15 +56,15 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     const slot = slots[activeSlot];
     setTimeout(() => {
       clearInterval(rollTimer.current);
+      // every selection with an eligible player for this slot, then a weighted draw
+      const candidates = window.SQUADS
+        .map(sq => ({ sq, elig: window.TEAM.eligible(slot, sq, takenIds) }))
+        .filter(c => c.elig.length);
       let squad = null, elig = [];
-      for (let t = 0; t < 40 && !squad; t++) {
-        const cand = window.SQUADS[Math.floor(Math.random() * window.SQUADS.length)];
-        const e = window.TEAM.eligible(slot, cand, takenIds);
-        if (e.length) { squad = cand; elig = e; }
-      }
-      if (!squad) for (const cand of window.SQUADS) {
-        const e = window.TEAM.eligible(slot, cand, takenIds);
-        if (e.length) { squad = cand; elig = e; break; }
+      if (candidates.length) {
+        const chosen = weightedPickSquad(candidates.map(c => c.sq));
+        const c = candidates.find(x => x.sq === chosen) || candidates[0];
+        squad = c.sq; elig = c.elig;
       }
       setDieValue(1 + Math.floor(Math.random() * 6));
       setDrawn({ squad, eligible: elig });
@@ -95,14 +107,15 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     for (let i = 0; i < total; i++) {
       if (next[i]) continue;
       const slot = slots[i];
-      const order = [...window.SQUADS].sort(() => Math.random() - 0.5);
-      for (const sq of order) {
-        const elig = window.TEAM.eligible(slot, sq, taken);
-        if (elig.length) {
-          const pickP = elig[Math.floor(Math.random() * elig.length)];
-          next[i] = pickP; taken.add(pickP.id); break;
-        }
-      }
+      // weighted draw among selections that still have an eligible player
+      const candidates = window.SQUADS
+        .map(sq => ({ sq, elig: window.TEAM.eligible(slot, sq, taken) }))
+        .filter(c => c.elig.length);
+      if (!candidates.length) continue;
+      const chosen = weightedPickSquad(candidates.map(c => c.sq));
+      const c = candidates.find(x => x.sq === chosen) || candidates[0];
+      const pickP = c.elig[Math.floor(Math.random() * c.elig.length)];
+      next[i] = pickP; taken.add(pickP.id);
     }
     setFills(next); setDrawn(null); setStep('roll');
     if (!starId) {
@@ -147,9 +160,9 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
       <>
         <div className="squadbox">
           <div className="hd">
-            <h3>Titulares</h3>
+            <h3>{t('ui.draft.xiTitle')}</h3>
             <span className={`cnt ${fills.slice(0, 11).every(Boolean) ? 'full' : 'part'}`}>
-              {fills.slice(0, 11).filter(Boolean).length}/11{xiAvg ? ` · méd ${xiAvg}` : ''}
+              {fills.slice(0, 11).filter(Boolean).length}/11{xiAvg ? ` · ${t('ui.draft.avgShort')} ${xiAvg}` : ''}
             </span>
           </div>
           <div className="slot-list">
@@ -171,7 +184,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                       </span>
                       {mode !== 'almanaque' && <span className="ov">{p.overall}</span>}
                     </>
-                  ) : <span className="nm empty">{active ? 'sua vez ›' : 'toque para sortear'}</span>}
+                  ) : <span className="nm empty">{active ? t('ui.draft.yourTurn') : t('ui.draft.tapToDraw')}</span>}
                 </div>
               );
             })}
@@ -180,7 +193,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
 
         <div className="squadbox bench-strip">
           <div className="hd">
-            <h3>Banco</h3>
+            <h3>{t('ui.draft.benchTitle')}</h3>
             <span className={`cnt ${fills.slice(11).every(Boolean) ? 'full' : 'part'}`}>
               {fills.slice(11).filter(Boolean).length}/{total - 11}
             </span>
@@ -201,13 +214,13 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                       <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}</span>
                       {mode !== 'almanaque' && <span className="ov">{p.overall}</span>}
                       {allFilled && (
-                        <button className="swapbtn" title="Trocar com um titular"
+                        <button className="swapbtn" title={t('ui.draft.swapTitle')}
                           onClick={(e) => { e.stopPropagation(); setSwapBench(isSwapping ? null : idx); }}>
                           {isSwapping ? '✕' : '⇄'}
                         </button>
                       )}
                     </>
-                  ) : <span className="nm empty">{active ? 'sua vez ›' : 'toque para sortear'}</span>}
+                  ) : <span className="nm empty">{active ? t('ui.draft.yourTurn') : t('ui.draft.tapToDraw')}</span>}
                 </div>
               );
             })}
@@ -223,32 +236,31 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
       <div className="stage screen-fade">
         <div className="shead">
           <div>
-            <span className="tok">elenco</span>
-            <h2 style={{ marginTop: 4 }}><Crest className="cr-h2" /> Time dos Sonhos</h2>
+            <span className="tok">{t('ui.draft.tokSquad')}</span>
+            <h2 style={{ marginTop: 4 }}><Crest className="cr-h2" /> {t('team.name')}</h2>
           </div>
-          <span className="meta">elenco completo · méd {xiAvg}</span>
+          <span className="meta">{t('ui.draft.reviewMeta', { avg: xiAvg })}</span>
         </div>
 
         {swapBench != null && (
           <div className="warn" style={{ marginBottom: 16, background: 'rgba(255,223,0,.08)', borderColor: 'rgba(255,223,0,.3)' }}>
             <span aria-hidden="true">⇄</span>
-            <span>Trocando <b>{fills[swapBench].name}</b> — toque num titular da mesma posição
-              ({window.CONFIG.POS_LABEL[fills[swapBench].pos]}) para trocar, ou ✕ para cancelar.</span>
+            <span>{t('ui.draft.swapHint', { name: fills[swapBench].name, pos: window.I18N.t('pos.' + fills[swapBench].pos) })}</span>
           </div>
         )}
 
         <div className="draftgrid">
           <div className="draft-pool">
             <div className="pitch-head">
-              <span className="tok">escalação</span>
-              <span className="pitch-hint">toque num titular para definir o capitão ★</span>
+              <span className="tok">{t('ui.draft.tokLineup')}</span>
+              <span className="pitch-hint">{t('ui.draft.captainHint')}</span>
             </div>
             <Pitch starters={fills.slice(0, 11)} formation={formation} starId={starId} hideOvr={mode === 'almanaque'} />
           </div>
           <div className="draft-side">
             <TeamPanel />
             <div className="actionbar" style={{ flexDirection: 'column', gap: 10 }}>
-              <button className="btn btn-yellow btn-block" onClick={confirm}>Confirmar elenco →</button>
+              <button className="btn btn-yellow btn-block" onClick={confirm}>{t('ui.draft.confirm')}</button>
             </div>
           </div>
         </div>
@@ -258,15 +270,15 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
 
   // ============ DRAFTING ============
   const slot = slots[activeSlot];
-  const posWord = window.CONFIG.POS_LABEL[slot.allow ? 'DEF' : slot.pos].toLowerCase();
+  const posWord = t('pos.' + (slot.allow ? 'DEF' : slot.pos)).toLowerCase();
   return (
     <div className="stage screen-fade">
       <div className="shead">
         <div>
-          <span className="tok">draft</span>
-          <h2 style={{ marginTop: 4 }}>Monte o time, vaga a vaga</h2>
+          <span className="tok">{t('ui.draft.tokDraft')}</span>
+          <h2 style={{ marginTop: 4 }}>{t('ui.draft.draftTitle')}</h2>
         </div>
-        <span className="meta">escalados {filledCount} de {total} · {formation}</span>
+        <span className="meta">{t('ui.draft.draftMeta', { n: filledCount, total, formation })}</span>
       </div>
 
       <div className="progress" style={{ marginBottom: 14 }}>
@@ -274,9 +286,9 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
       </div>
 
       <div className="draft-instruct">
-        <span>Toque numa vaga ao lado para escolher qual posição sortear primeiro.</span>
+        <span>{t('ui.draft.instruct')}</span>
         <button className="btn-mini random-btn" onClick={randomFill}>
-          🎲 {filledCount > 0 ? 'Completar aleatório' : 'Time aleatório'}
+          🎲 {filledCount > 0 ? t('ui.draft.randomComplete') : t('ui.draft.randomAll')}
         </button>
       </div>
 
@@ -284,7 +296,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
         <div className="draft-pool">
           <div className="rollpanel">
             <div className="rp-head">
-              <span className="rp-step">Sorteando para</span>
+              <span className="rp-step">{t('ui.draft.drawingFor')}</span>
               <span className="rp-pos">{window.TEAM.slotLabel(slot)}</span>
             </div>
 
@@ -293,11 +305,11 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                 <Die value={dieValue} rolling={step === 'rolling'} />
                 {step === 'roll' && (
                   <>
-                    <p className="rp-hint">Role o dado para sortear a seleção que vai te oferecer um {posWord}. Escolha outra vaga ao lado se preferir começar por outra posição.</p>
-                    <button className="btn btn-green" style={{ fontSize: 16, padding: '14px 34px' }} onClick={doDraw}>🎲 Rolar o dado</button>
+                    <p className="rp-hint">{t('ui.draft.rollHint', { pos: posWord })}</p>
+                    <button className="btn btn-green" style={{ fontSize: 16, padding: '14px 34px' }} onClick={doDraw}>{t('ui.draft.rollBtn')}</button>
                   </>
                 )}
-                {step === 'rolling' && <p className="rp-hint">Sorteando seleção…</p>}
+                {step === 'rolling' && <p className="rp-hint">{t('ui.draft.drawing')}</p>}
               </div>
             )}
 
@@ -307,17 +319,17 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                   <Flag code={drawn.squad.code} />
                   <div>
                     <div className="db-team">{drawn.squad.team} <span>{drawn.squad.cup}</span></div>
-                    <div className="db-sub">sorteada! escolha um {posWord} desta seleção</div>
+                    <div className="db-sub">{t('ui.draft.drawnSub', { pos: posWord })}</div>
                   </div>
                   {MAX_REROLL > 0 && (
                     <button className="btn-mini reroll" disabled={rerollsLeft <= 0}
                       onClick={reroll} style={rerollsLeft <= 0 ? { opacity: .4, cursor: 'not-allowed' } : {}}>
-                      🎲 Sortear de novo ({rerollsLeft})
+                      {t('ui.draft.reroll', { n: rerollsLeft })}
                     </button>
                   )}
                 </div>
                 {MAX_REROLL === 0 && (
-                  <p className="rp-hint" style={{ margin: '0 0 12px', fontSize: 13 }}>Modo De Almanaque: sem nova rolagem — escolha de memória.</p>
+                  <p className="rp-hint" style={{ margin: '0 0 12px', fontSize: 13 }}>{t('ui.draft.almanacNote')}</p>
                 )}
                 <div className="poolcols">
                   {drawn.eligible.map(p => (
@@ -343,35 +355,36 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
    team average + grade after the player committed by memory.
    ============================================================ */
 function AlmanaqueReveal({ me, starters, bench, onContinue }) {
+  const t = (k, v) => window.I18N.t(k, v);
   const avg = starters.length ? Math.round(starters.reduce((s, p) => s + p.overall, 0) / starters.length) : 0;
   const grade = avg >= 89 ? 'S' : avg >= 85 ? 'A' : avg >= 81 ? 'B' : avg >= 77 ? 'C' : 'D';
-  const gradeWord = { S: 'Lendário', A: 'Excelente', B: 'Sólido', C: 'Mediano', D: 'Arriscado' }[grade];
+  const gradeWord = t('ui.draft.grade' + grade);
   const [shown, setShown] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setShown(true), 450); return () => clearTimeout(t); }, []);
+  useEffect(() => { const tm = setTimeout(() => setShown(true), 450); return () => clearTimeout(tm); }, []);
   const best = [...starters].sort((a, b) => b.overall - a.overall)[0];
 
   return (
     <div className="stage narrow screen-fade reveal">
       <div className="shead" style={{ justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <span className="tok">de almanaque</span>
-          <h2 style={{ marginTop: 4 }}>Hora da verdade</h2>
+          <span className="tok">{t('ui.draft.revealTok')}</span>
+          <h2 style={{ marginTop: 4 }}>{t('ui.draft.revealTitle')}</h2>
         </div>
       </div>
       <p className="p" style={{ maxWidth: 440, margin: '0 auto 26px', textAlign: 'center' }}>
-        Você montou o elenco no escuro, só pela memória. Veja como ficou.
+        {t('ui.draft.revealIntro')}
       </p>
       <div className={`alm-card ${shown ? 'on' : ''}`}>
         <div className={`alm-grade g-${grade}`}>{grade}</div>
         <div className="alm-meta">
           <div className="alm-avg">{shown ? avg : '—'}</div>
-          <div className="alm-lbl">média do elenco · {gradeWord}</div>
-          {best && <div className="alm-best">Craque do grupo: <b>{best.name}</b> {best.code && <Flag code={best.code} className="slot-flag" />}</div>}
+          <div className="alm-lbl">{t('ui.draft.revealAvg', { grade: gradeWord })}</div>
+          {best && <div className="alm-best">{t('ui.draft.revealBest')} <b>{best.name}</b> {best.code && <Flag code={best.code} className="slot-flag" />}</div>}
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 30 }}>
         <button className="btn btn-yellow" style={{ fontSize: 16, padding: '14px 38px' }} onClick={onContinue}>
-          Rumo ao mata-mata →
+          {t('ui.draft.revealContinue')}
         </button>
       </div>
     </div>
