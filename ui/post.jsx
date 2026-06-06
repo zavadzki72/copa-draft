@@ -161,7 +161,7 @@ function BracketScreen({ bracket, currentIdx, me, playerAvg, onContinue }) {
 }
 
 /* ---------- CAMPAIGN END ---------- */
-function CampaignEndScreen({ won, me, bracket, unlocked, mode, onRestart }) {
+function CampaignEndScreen({ won, me, bracket, unlocked, mode, stats, onRestart }) {
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const colors = ['var(--green-bright)', 'var(--yellow)', 'var(--blue-bright)', '#fff'];
   const unlockedSet = new Set(unlocked || []);
@@ -197,6 +197,14 @@ function CampaignEndScreen({ won, me, bracket, unlocked, mode, onRestart }) {
         left: Math.random() * 100, bg: colors[i % colors.length],
         delay: Math.random() * 2.5, dur: 2.6 + Math.random() * 2.4,
       })) : [];
+
+  const s = stats || {};
+  const awards = [
+    s.artilheiro && { icon: '⚽', title: 'Artilheiro', p: s.artilheiro, big: s.artilheiro.goals, meta: `${s.artilheiro.goals} gol(s) em ${s.artilheiro.matches} jogo(s)` },
+    s.melhorJogador && { icon: '🏅', title: 'Melhor Jogador', p: s.melhorJogador, big: s.melhorJogador.avg.toFixed(1), meta: `média de nota · ${s.melhorJogador.goals}G ${s.melhorJogador.assists}A` },
+    s.melhorGoleiro && { icon: '🧤', title: 'Melhor Goleiro', p: s.melhorGoleiro, big: s.melhorGoleiro.cleanSheets, meta: `${s.melhorGoleiro.cleanSheets} jogo(s) sem sofrer · ${s.melhorGoleiro.saves} defesas` },
+    s.maestro && { icon: '🎩', title: 'Maestro', p: s.maestro, big: s.maestro.assists, meta: `${s.maestro.assists} assistência(s)` },
+  ].filter(Boolean);
 
   return (
     <div className="stage narrow screen-fade endwrap">
@@ -237,6 +245,27 @@ function CampaignEndScreen({ won, me, bracket, unlocked, mode, onRestart }) {
         <button className="btn btn-green" onClick={onRestart}>↻ Jogar novamente</button>
       </div>
       {shareMsg && <div className="share-msg">{shareMsg}</div>}
+
+      {awards.length > 0 && (
+        <>
+          <div className="shead" style={{ margin: '40px 0 14px', textAlign: 'left' }}>
+            <span className="tok">estatísticas da copa</span>
+            <span className="meta">premiações da campanha</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {awards.map((a, i) => (
+              <div className="motm" key={i}>
+                <span className="badge badge-yellow">{a.icon} {a.title}</span>
+                <div className="motm-mid">
+                  <div className="nm">{a.p.name}</div>
+                  <div className="meta"><PosPill pos={a.p.pos} /> {a.meta}</div>
+                </div>
+                <span className="rt">{a.big}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="shead" style={{ margin: '40px 0 14px', textAlign: 'left' }}>
         <span className="tok">conquistas</span>

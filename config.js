@@ -28,6 +28,7 @@ window.CONFIG = {
   RATING_BIGCHANCE: 0.3,  // big-chance involvement
   RATING_CONCEDE: -0.3,   // per goal conceded, to GK + ZAG/LAT
   RATING_NOISE: 0.3,      // ± random noise
+  RATING_RED: -1.5,       // sending-off penalty applied to the offender's rating
   RATING_MIN: 4.0,
   RATING_MAX: 10.0,
 
@@ -54,6 +55,27 @@ window.CONFIG = {
   PK_SAVE_BASE: 0.55,                 // chance de defesa quando o goleiro acerta o lado
   PK_GK_WEIGHT: 0.22,                 // peso do overall do goleiro na defesa
   PK_AI_READ: 0.30,                   // o quanto a IA "lê" o canto do cobrador
+
+  /* ---------- Match events with impact (red card, penalty, injury) ---------- */
+  /* All chances are evaluated minute-by-minute with the SEEDED rng, so the
+     auto-simulated match stays deterministic. Tune freely. */
+  FOUL_PM: 0.05,            // relevant-foul chance per minute, per side (base for cards)
+  FOUL_YELLOW_P: 0.22,      // given a foul, chance it becomes a yellow card
+  FOUL_RED_P: 0.012,        // given a foul, chance it becomes a straight red card
+  // a 2nd yellow to the same player in a match = sending off (rule, no constant)
+  PENALTY_PM: 0.0016,       // penalty chance per minute, per side (~0.14 per 90')
+  PEN_CONVERT_BASE: 0.78,   // base conversion of a seeded in-match penalty
+  INJURY_PM: 0.0009,        // injury chance per minute, per side (rare, ~0.08 per 90')
+  MAN_DOWN_ATK: 0.82,       // attack scalar for a side reduced to 10 men
+  MAN_DOWN_DEF: 0.86,       // defense scalar for a side reduced to 10 men (raises opp. λ)
+
+  /* ---------- Campaign consequences (carry across phases) ---------- */
+  SUSPENSION_MATCHES: 1,    // a sending-off suspends the player for the next N matches
+  INJURY_PHASES_MIN: 1,     // an injury rules a player out for MIN..MAX phases
+  INJURY_PHASES_MAX: 2,
+
+  /* ---------- Campaign awards (end-of-cup stats) ---------- */
+  AWARD_MIN_MATCHES: 2,     // minimum matches played to qualify for "best player"
 
   /* ---------- Formations ---------- */
   FORMATIONS: {

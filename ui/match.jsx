@@ -13,7 +13,7 @@ function StaminaBar({ fatigue }) {
   );
 }
 
-function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, opponentXI, opponentAvg, onStart }) {
+function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, playerStatus, opponentXI, opponentAvg, onStart }) {
   const C = window.CONFIG;
   const opp = round.opponent;
   const keyMen = [...opponentXI].sort((a, b) => b.overall - a.overall).slice(0, 3);
@@ -23,7 +23,14 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
   const [sel, setSel] = useState(null);       // selected bench id to swap in
 
   const origIds = useMemo(() => new Set(starters.map(p => p.id)), [starters]);
-  const subsUsed = xi.filter(p => !origIds.has(p.id)).length;
+  const stOf = (id) => window.TEAM.statusOf(playerStatus, id);   // null when available
+  const sameKind = (a, b) => (a.pos === 'GOL') === (b.pos === 'GOL'); // keeper<->keeper, outfield<->outfield
+  const xiIds = new Set(xi.map(p => p.id));
+  // only TACTICAL rotations (swapping out an AVAILABLE starter) count toward the budget;
+  // replacing a suspended/injured starter is a forced, free substitution.
+  const subsUsed = starters.filter(o => !xiIds.has(o.id) && !stOf(o.id)).length;
+  const blockedXI = xi.filter(p => stOf(p.id));                  // unavailable players still in the XI
+  const canStart = blockedXI.length === 0;
 
   const hasLeader = xi.some(p => p.leader);
   const pressOf = (p) => window.TEAM.pressureOf(p, round.n, hasLeader);
@@ -38,11 +45,21 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
     if (sel == null) return;
     const bp = res.find(p => p.id === sel);
     const sp = xi[starterIdx];
-    if (!bp || bp.pos !== sp.pos) return;             // exact position match only
-    if (origIds.has(sp.id) && subsUsed >= C.SUBS_MAX) return;
+    if (!bp || stOf(bp.id)) return;                   // cannot field a suspended/injured reserve
+    const forcedOut = origIds.has(sp.id) && !!stOf(sp.id);   // replacing an unavailable starter is free
+    // tactical sub: exact position; forced replacement: same kind (avoids softlock w/o an exact reserve)
+    if (forcedOut ? !sameKind(bp, sp) : bp.pos !== sp.pos) return;
+    if (origIds.has(sp.id) && !forcedOut && subsUsed >= C.SUBS_MAX) return;
     const nx = [...xi]; nx[starterIdx] = bp;
     const nr = res.map(p => p.id === sel ? sp : p);
     setXi(nx); setRes(nr); setSel(null);
+  }
+
+  function outTag(id) {
+    const s = stOf(id);
+    if (!s) return null;
+    const label = s.kind === 'suspended' ? 'SUSPENSO' : `LESIONADO ${s.n}f`;
+    return <span className="out-tag" title={s.kind === 'suspended' ? 'Suspenso nesta fase' : `Lesionado por ${s.n} fase(s)`}>{label}</span>;
   }
 
   const grpStarters = (pos) => xi.map((p, i) => ({ p, i })).filter(o => o.p.pos === pos);
@@ -55,7 +72,8 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           <span className="tok">{round.id}</span>
           <h2 style={{ marginTop: 4 }}>{round.label}</h2>
         </div>
-        <button className="btn btn-yellow start-top" onClick={() => onStart(xi, res)}>▶ Iniciar partida</button>
+        <button className="btn btn-yellow start-top" disabled={!canStart}
+          onClick={() => canStart && onStart(xi, res)}>▶ Iniciar partida</button>
       </div>
 
       <div className="vs-panel" style={{ marginBottom: 22 }}>
@@ -109,6 +127,15 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
             </div>
           )}
 
+          {!canStart && (
+            <div className="warn" style={{ marginBottom: 14, background: 'rgba(229,72,77,.1)', borderColor: 'rgba(229,72,77,.35)' }}>
+              <span aria-hidden="true">🚫</span>
+              <span><b>Desfalques na escalação.</b> {blockedXI.map((p, i) => (
+                <React.Fragment key={p.id}>{i > 0 ? ', ' : ''}<b>{p.name}</b> ({stOf(p.id).kind === 'suspended' ? 'suspenso' : `lesionado ${stOf(p.id).n}f`})</React.Fragment>
+              ))}. Substitua por reservas disponíveis antes de iniciar — trocas forçadas não gastam substituição.</span>
+            </div>
+          )}
+
           {/* SUBSTITUTIONS / rotation */}
           <div className="squadbox">
             <div className="hd">
@@ -127,14 +154,16 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
               {POS_ORDER.flatMap(pos => grpStarters(pos)).map(({ p, i }) => {
                 const f = window.TEAM.fatigueOf(fatigue, p.id);
                 const pr = pressOf(p);
-                const eligible = sel != null && res.find(x => x.id === sel)?.pos === p.pos;
+                const selP = sel != null ? res.find(x => x.id === sel) : null;
+                const eligible = !!selP && (stOf(p.id) ? sameKind(selP, p) : selP.pos === p.pos);
                 return (
-                  <div className={`slot stamina-row ${eligible ? 'swap-target' : ''}`} key={p.id}
+                  <div className={`slot stamina-row ${eligible ? 'swap-target' : ''} ${stOf(p.id) ? 'out' : ''}`} key={p.id}
                     onClick={() => eligible && swapInto(i)} style={eligible ? { cursor: 'pointer' } : {}}>
                     <span className="pp">{p.pos}</span>
                     <span className="nm">
                       {p.id === starId && <span className="star-dot">★ </span>}
                       {p.code && <Flag code={p.code} className="slot-flag" />} {p.name}
+                      {outTag(p.id)}
                       {p.leader && <span className="lead-tag">LÍDER</span>}
                       {p.age < C.PRESSURE_U_AGE && <span className="young-tag" title={`${p.age} anos`}>SUB-23</span>}
                       {pr > 0 && <span className="press-tag" title="Pressão do mata-mata">pressão −{pr}</span>}
@@ -150,15 +179,16 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
               {res.map(p => {
                 const f = window.TEAM.fatigueOf(fatigue, p.id);
                 const active = sel === p.id;
+                const out = stOf(p.id);
                 return (
-                  <div className={`slot stamina-row bench ${active ? 'swapping' : ''}`} key={p.id}
-                    onClick={() => setSel(active ? null : p.id)} style={{ cursor: 'pointer' }}>
+                  <div className={`slot stamina-row bench ${active ? 'swapping' : ''} ${out ? 'out' : ''}`} key={p.id}
+                    onClick={() => !out && setSel(active ? null : p.id)} style={{ cursor: out ? 'not-allowed' : 'pointer' }}>
                     <span className="pp">{p.pos}</span>
-                    <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}</span>
+                    <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}{outTag(p.id)}</span>
                     <StaminaBar fatigue={f} />
                     <span className="ov">{effOvr(p)}</span>
-                    <button className="swapbtn" title="Escalar este reserva"
-                      onClick={(e) => { e.stopPropagation(); setSel(active ? null : p.id); }}>
+                    <button className="swapbtn" title={out ? 'Indisponível' : 'Escalar este reserva'} disabled={!!out}
+                      onClick={(e) => { e.stopPropagation(); if (!out) setSel(active ? null : p.id); }}>
                       {active ? '✕' : '⇄'}
                     </button>
                   </div>
@@ -184,7 +214,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
         <button className="btn btn-yellow" style={{ fontSize: 16, padding: '15px 40px' }}
-          onClick={() => onStart(xi, res)}>
+          disabled={!canStart} onClick={() => canStart && onStart(xi, res)}>
           ▶ Iniciar partida
         </button>
       </div>
@@ -193,7 +223,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 }
 
 /* ---------- LIVE MATCH TICKER ---------- */
-function MatchScreen({ log, me, round, sfx, onFinish, onShootout }) {
+function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pendingPen }) {
   const beep = sfx || (() => {});
   const maxMinute = log.extraTime ? 120 : 90;
   const DURATION_MS = 34000;
@@ -204,6 +234,10 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout }) {
   const [done, setDone] = useState(false);
   const clockRef = useRef(0);
   const tickerRef = useRef(null);
+  const pausedRef = useRef(false);                 // frozen while a penalty mini-game is open
+  const handledRef = useRef(new Set());            // penIds already presented
+  const skipRef = useRef(false);                   // "Pular" / reduced-motion => no penalty pauses
+  const iPens = log.matchPens || [];
 
   // events that should be visible at the current clock
   const shown = log.events.filter(e => e.minute <= Math.ceil(clock));
@@ -221,7 +255,23 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout }) {
   useEffect(() => {
     if (reduced) { finishNow(); return; }
     const iv = setInterval(() => {
+      if (pausedRef.current) return;               // frozen for an open penalty
       clockRef.current += step;
+
+      // pause just before revealing an interactive penalty (hand it to the UI)
+      if (!skipRef.current && onPenalty) {
+        const cm = Math.ceil(clockRef.current);
+        const due = iPens.find(p => p.minute <= cm && p.minute <= maxMinute && !handledRef.current.has(p.penId));
+        if (due) {
+          handledRef.current.add(due.penId);
+          pausedRef.current = true;
+          clockRef.current = Math.max(0, due.minute - 1);   // keep the outcome hidden until resume
+          setClock(clockRef.current);
+          onPenalty(due);
+          return;
+        }
+      }
+
       if (clockRef.current >= maxMinute) {
         clockRef.current = maxMinute;
         setClock(maxMinute);
@@ -235,7 +285,14 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout }) {
     // eslint-disable-next-line
   }, []);
 
+  // resume the ticker once the penalty mini-game closes
+  useEffect(() => {
+    if (pendingPen == null) pausedRef.current = false;
+  }, [pendingPen]);
+
   function finishNow() {
+    skipRef.current = true;
+    pausedRef.current = false;
     clockRef.current = maxMinute;
     setClock(maxMinute);
     setDone(true);

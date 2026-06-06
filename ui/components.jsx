@@ -54,7 +54,7 @@ function AttrBars({ attrs, masked = false }) {
 }
 
 /* compact game header with breadcrumb trail */
-function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset }) {
+function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset, onHowTo }) {
   const steps = [
     { id: 'home', label: 'início' },
     { id: 'draft', label: 'elenco' },
@@ -85,6 +85,16 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset }) {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onHowTo && (
+            <button className="btn-icon" onClick={onHowTo} aria-label="Como jogar" title="Como jogar?">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"></path>
+                <line x1="12" y1="17" x2="12" y2="17"></line>
+              </svg>
+            </button>
+          )}
           <button className="btn-icon" onClick={onToggleSound} aria-label={sound ? 'Desligar som' : 'Ligar som'}
             title={sound ? 'Som ligado' : 'Som desligado'}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"

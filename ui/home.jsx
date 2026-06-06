@@ -71,7 +71,7 @@ function FormationSelect({ options, value, onChange }) {
   );
 }
 
-function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart }) {
+function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo }) {
   return (
     <div className="stage screen-fade">
       <div className="home-hero">
@@ -94,6 +94,9 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
         <button className={`btn ${canResume ? 'btn-ghost' : 'btn-green'}`} style={{ fontSize: 17, padding: '15px 38px' }} onClick={onStart}>
           🎲 {canResume ? 'Começar de novo' : 'Começar o draft'}
         </button>
+        {onHowTo && (
+          <button className="btn-mini" onClick={onHowTo}>📖 Como jogar?</button>
+        )}
         {profile && profile.plays > 0 && (
           <span className="home-stats">{profile.plays} campanha(s) · {profile.titles} título(s) · {(profile.achievements || []).length}/{window.ACHIEVEMENTS.LIST.length} conquistas</span>
         )}

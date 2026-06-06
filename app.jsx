@@ -9,8 +9,10 @@
 const {
   GameHeader, HomeScreen, DraftScreen, PreMatchScreen, MatchScreen,
   PostMatchScreen, BracketScreen, CampaignEndScreen, PenaltyShootout,
-  AlmanaqueReveal, AchievementToast,
+  AlmanaqueReveal, AchievementToast, HowToPlay, InMatchPenalty,
 } = window;
+
+function findPlayer(list, id) { return (list || []).find(p => p.id === id); }
 
 function avgOverall(players) {
   return players.length ? Math.round(players.reduce((s, p) => s + p.overall, 0) / players.length) : 0;
@@ -26,14 +28,18 @@ function App() {
   const [formation, setFormation] = useState('4-3-3');
   const [sound, setSound] = useState(profile0.sound);
   const [canResume, setCanResume] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
 
   const [team, setTeam] = useState({ starters: [], bench: [], starId: null });
   const [fatigue, setFatigue] = useState({});      // { playerId: fatiguePoints }
+  const [playerStatus, setPlayerStatus] = useState({}); // { playerId: {suspended, injured} } across phases
+  const [campaignStats, setCampaignStats] = useState({}); // per-player tally for end-of-cup awards (home only)
   const [lineup, setLineup] = useState({ starters: [], bench: [] }); // lineup used for the current match
   const [bracket, setBracket] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [oppXI, setOppXI] = useState([]);
   const [match, setMatch] = useState(null);      // {log, ratings}
+  const [pendingPen, setPendingPen] = useState(null); // in-match penalty awaiting the player
   const [won, setWon] = useState(false);
   const [unlocked, setUnlocked] = useState([]);  // achievement ids (in order)
   const [toasts, setToasts] = useState([]);      // [{key, ach}]
@@ -54,14 +60,16 @@ function App() {
   }, []); // eslint-disable-line
 
   function snapshot() {
-    return { phase, mode, formation, team, fatigue, lineup, bracket,
+    return { phase, mode, formation, team, fatigue, playerStatus, campaignStats, lineup, bracket,
       currentIdx, oppXI, match, won, unlocked, history };
   }
   function resumeRun() {
     const s = window.STORE.loadRun();
     if (!s) return;
     setMode(s.mode); setFormation(s.formation); setTeam(s.team);
-    setFatigue(s.fatigue || {}); setLineup(s.lineup || { starters: [], bench: [] });
+    setFatigue(s.fatigue || {}); setPlayerStatus(s.playerStatus || {});
+    setCampaignStats(s.campaignStats || {});
+    setLineup(s.lineup || { starters: [], bench: [] });
     setBracket(s.bracket || []); setCurrentIdx(s.currentIdx || 0);
     setOppXI(s.oppXI || []); setMatch(s.match || null); setWon(!!s.won);
     setUnlocked(s.unlocked || []); setHistory(s.history || []);
@@ -110,6 +118,7 @@ function App() {
   function confirmDraft(starters, bench, starId) {
     setTeam({ starters, bench, starId });
     setFatigue(window.TEAM.initFatigue([...starters, ...bench]));
+    setPlayerStatus({}); setCampaignStats({});
     const rng = window.RNG.makeRng(window.RNG.seedFrom('copa-' + Date.now()));
     setBracket(window.TEAM.buildBracket(rng));
     setCurrentIdx(0);
@@ -129,7 +138,11 @@ function App() {
   function startMatch(starters, bench) {
     setLineup({ starters, bench });
     const tiredStarters = window.TEAM.applyFatigue(starters, fatigue);
-    const home = window.TEAM.makeDreamSide(tiredStarters, formation, 'home');
+    const tiredBench = window.TEAM.applyFatigue(bench, fatigue);
+    // remaining substitutions = budget minus rotations already made vs the drafted XI
+    const origIds = new Set(team.starters.map(p => p.id));
+    const subsLeft = Math.max(0, C.SUBS_MAX - starters.filter(p => !origIds.has(p.id)).length);
+    const home = window.TEAM.makeDreamSide(tiredStarters, formation, 'home', tiredBench, subsLeft);
     const away = window.TEAM.makeSide(round.opponent, oppXI, formation, 'away');
     const seed = window.RNG.seedFrom(`dream-${round.id}-${currentIdx}-${round.opponent.id}`);
     const log = window.ENGINE.simulateMatch(home, away, C, seed,
@@ -146,9 +159,22 @@ function App() {
     recordAndPost(finalLog);
   }
 
+  // interactive in-match penalty resolved -> override the seeded outcome,
+  // recompute the log + ratings, and let the ticker resume.
+  function resolveInMatchPenalty(outcome) {
+    if (!pendingPen) return;
+    const finalLog = window.ENGINE.finalizeInMatchPenalty(match.log, pendingPen.penId, outcome);
+    setMatch({ log: finalLog, ratings: window.RATINGS.computeRatings(finalLog, C) });
+    setPendingPen(null);
+  }
+
   function recordAndPost(finalLog) {
     // fatigue: starters tire, unused reserves recover
     setFatigue(prev => window.TEAM.updateFatigue(prev, lineup.starters, lineup.bench, finalLog.extraTime));
+    // campaign status: a phase passed -> decrement, then apply this match's red cards / injuries
+    setPlayerStatus(prev => window.TEAM.advancePlayerStatus(prev, finalLog, C));
+    // accumulate end-of-cup stats from this match (player's team only)
+    setCampaignStats(prev => window.STATS.accumulate(prev, match.ratings, finalLog, C));
     setBracket(prev => prev.map((r, i) => i === currentIdx ? { ...r, played: true, log: finalLog } : r));
     // achievements (match-level)
     const wonMatch = finalLog.result === 'home';
@@ -193,8 +219,8 @@ function App() {
     window.STORE.clearRun();
     setPhase('home');
     setTeam({ starters: [], bench: [], starId: null });
-    setFatigue({}); setLineup({ starters: [], bench: [] });
-    setBracket([]); setCurrentIdx(0); setMatch(null); setWon(false);
+    setFatigue({}); setPlayerStatus({}); setCampaignStats({}); setLineup({ starters: [], bench: [] });
+    setBracket([]); setCurrentIdx(0); setMatch(null); setPendingPen(null); setWon(false);
     setUnlocked([]); setToasts([]); setHistory([]);
     setCanResume(false);
   }
@@ -206,11 +232,12 @@ function App() {
         hasTeam={hasTeam && phase !== 'home'}
         round={['prematch', 'match', 'post'].includes(phase) ? round : null}
         sound={sound} onToggleSound={toggleSound}
-        onReset={reset} />
+        onReset={reset} onHowTo={() => setShowHowTo(true)} />
 
       {phase === 'home' && (
         <HomeScreen mode={mode} setMode={setMode} formation={formation} setFormation={setFormation}
           canResume={canResume} onResume={resumeRun} profile={profile0}
+          onHowTo={() => setShowHowTo(true)}
           onStart={() => { window.SFX.prime(); reset(); setPhase('draft'); }} />
       )}
 
@@ -230,13 +257,14 @@ function App() {
 
       {phase === 'prematch' && round && (
         <PreMatchScreen me={ME} starters={team.starters} bench={team.bench} starId={team.starId}
-          formation={formation} round={round} fatigue={fatigue}
+          formation={formation} round={round} fatigue={fatigue} playerStatus={playerStatus}
           opponentXI={oppXI} opponentAvg={avgOverall(oppXI)} onStart={startMatch} />
       )}
 
       {phase === 'match' && match && (
         <MatchScreen log={match.log} me={ME} round={round} sfx={sfx}
-          onFinish={finishMatch} onShootout={() => setPhase('shootout')} />
+          onFinish={finishMatch} onShootout={() => setPhase('shootout')}
+          onPenalty={(pen) => setPendingPen(pen)} pendingPen={pendingPen} />
       )}
 
       {phase === 'shootout' && match && (
@@ -252,7 +280,7 @@ function App() {
 
       {phase === 'end' && (
         <CampaignEndScreen won={won} me={ME} bracket={bracket} unlocked={unlocked}
-          mode={mode} onRestart={reset} />
+          mode={mode} stats={window.STATS.compute(campaignStats, C)} onRestart={reset} />
       )}
 
       {toasts.length > 0 && (
@@ -260,6 +288,18 @@ function App() {
           {toasts.map(t => <AchievementToast key={t.key} ach={t.ach} />)}
         </div>
       )}
+
+      {showHowTo && <HowToPlay onClose={() => setShowHowTo(false)} />}
+
+      {phase === 'match' && pendingPen && (() => {
+        const home = pendingPen.side === 'home';
+        const mySquad = [...(lineup.starters || []), ...(lineup.bench || [])];
+        const taker = home ? findPlayer(mySquad, pendingPen.taker) : findPlayer(oppXI, pendingPen.taker);
+        const gk = home
+          ? (findPlayer(oppXI, pendingPen.gk) || (oppXI || []).find(p => p.pos === 'GOL'))
+          : (findPlayer(mySquad, pendingPen.gk) || mySquad.find(p => p.pos === 'GOL'));
+        return <InMatchPenalty youKick={home} taker={taker} gk={gk} sfx={sfx} onComplete={resolveInMatchPenalty} />;
+      })()}
     </div>
   );
 }

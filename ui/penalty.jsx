@@ -228,4 +228,111 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
   );
 }
 
-Object.assign(window, { PenaltyShootout });
+/* ---------- IN-MATCH PENALTY (single kick) ----------
+   Reuses the shootout mechanic for ONE kick during a match. You COBRA
+   (pick a corner) when the penalty is yours, or DEFENDE (pick a side)
+   when it is against you. onComplete('goal'|'save'|'miss') hands the
+   outcome back so the engine can finalize it. Interactive => Math.random
+   is fine here (same accepted exception as the shootout). */
+function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
+  const C = window.CONFIG;
+  const beep = sfx || (() => {});
+  const ZONES = C.PK_ZONES;
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const tShoot = (taker && taker.attrs && taker.attrs.shooting) ||
+    (taker && window.DERIVE.deriveAttrs(taker).shooting) || 80;
+  const gkOvr = (gk && gk.overall) || 75;
+
+  const [phase, setPhase] = useState('aim');   // aim|anim|done
+  const [anim, setAnim] = useState(null);       // {shoot, gk, outcome}
+  const doneRef = useRef(false);
+  useEffect(() => () => { doneRef.current = true; }, []);
+
+  function computeGoal(shootZone, gkZone) {
+    if (shootZone !== gkZone) {
+      const missP = Math.max(0.03, 0.09 - (tShoot - 80) * 0.0015);
+      return Math.random() > missP;
+    }
+    let saveP = C.PK_SAVE_BASE + (gkOvr - 80) * 0.01 - (tShoot - 80) * 0.006;
+    saveP = Math.max(0.25, 0.9 < saveP ? 0.9 : saveP);
+    return Math.random() > saveP;
+  }
+  const aiGuess = (z) => Math.random() < C.PK_AI_READ ? z : ZONES[Math.floor(Math.random() * ZONES.length)];
+  const aiShoot = () => Math.random() < 0.8 ? (Math.random() < 0.5 ? 'esq' : 'dir') : 'meio';
+
+  function commit(pick) {
+    if (phase !== 'aim' || doneRef.current) return;
+    let shoot, gkZone;
+    if (youKick) { shoot = pick; gkZone = aiGuess(pick); }
+    else { shoot = aiShoot(); gkZone = pick; }
+    const scored = computeGoal(shoot, gkZone);
+    const outcome = scored ? 'goal' : (shoot === gkZone ? 'save' : 'miss');
+    beep(outcome === 'goal' ? 'goal' : outcome === 'save' ? 'save' : 'miss');
+    setAnim({ shoot, gk: gkZone, outcome });
+    setPhase('anim');
+    setTimeout(() => { if (!doneRef.current) setPhase('done'); }, reduced ? 120 : 950);
+  }
+
+  const zoneCenter = { esq: 22, meio: 50, dir: 78 };
+  const ballStyle = () => anim ? { left: zoneCenter[anim.shoot] + '%', top: '34%', transform: 'translate(-50%,-50%) scale(.7)' } : {};
+  const gkStyle = () => {
+    const z = anim ? anim.gk : 'meio';
+    const rot = z === 'esq' ? -38 : z === 'dir' ? 38 : 0;
+    return { left: zoneCenter[z] + '%', transform: `translateX(-50%) rotate(${rot}deg)` };
+  };
+  const flashTxt = anim && (anim.outcome === 'goal' ? 'GOL!' : anim.outcome === 'save' ? 'DEFENDEU!' : 'PRA FORA!');
+  const prompt = youKick
+    ? `Pênalti a favor! ${taker ? taker.name : 'O cobrador'} vai bater — escolha o canto.`
+    : `Pênalti contra! ${taker ? taker.name : 'O adversário'} vai bater — escolha o lado para defender.`;
+
+  return (
+    <div className="howto-overlay" role="dialog" aria-modal="true" aria-label="Pênalti">
+      <div className="howto-panel" style={{ maxWidth: 560 }}>
+        <div className="shead" style={{ marginBottom: 12 }}>
+          <div><span className="tok">pênalti</span><h2 style={{ marginTop: 4 }}>Cobrança de pênalti</h2></div>
+          <span className="meta">{youKick ? 'você cobra' : 'você defende'}</span>
+        </div>
+
+        <div className={`pk-stage ${anim ? 'shot-' + anim.outcome : ''}`}>
+          <div className="pk-goal">
+            <div className="pk-net"></div>
+            <div className="pk-post left"></div>
+            <div className="pk-post right"></div>
+            <div className="pk-bar"></div>
+            <div className={`pk-keeper ${phase === 'anim' ? 'dive' : ''}`} style={gkStyle()}>
+              <span className="pk-gk-body"></span>
+            </div>
+            <div className={`pk-ball ${anim ? 'fly' : ''}`} style={anim ? ballStyle() : {}}></div>
+            {phase === 'aim' && (
+              <div className="pk-targets">
+                {ZONES.map(z => (
+                  <button key={z} className="pk-target" onClick={() => commit(z)} aria-label={z}>
+                    <span className="pk-target-ic">{youKick ? '🎯' : '🧤'}</span>
+                    <span className="pk-target-lb">{z === 'esq' ? 'Esquerda' : z === 'meio' ? 'Meio' : 'Direita'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {anim && phase !== 'aim' && <div className={`pk-flash ${anim.outcome}`}>{flashTxt}</div>}
+          </div>
+          <div className="pk-grass"></div>
+        </div>
+
+        <div className="pk-prompt">
+          {phase === 'done'
+            ? <span className={`pk-result ${anim.outcome === 'goal' ? (youKick ? 'win' : 'loss') : (youKick ? 'loss' : 'win')}`}>{flashTxt}</span>
+            : <span className={youKick ? 'you-kick' : 'you-save'}>{prompt}</span>}
+        </div>
+
+        <div className="howto-foot">
+          {phase === 'done' && (
+            <button className="btn btn-green" onClick={() => onComplete(anim.outcome)}>Continuar →</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { PenaltyShootout, InMatchPenalty });

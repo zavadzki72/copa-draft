@@ -231,6 +231,16 @@
 .tk.goal .mn { color: var(--green-bright); }
 .tk.save .tx, .tk.woodwork .tx { color:var(--fg1); }
 .tk.yellow { border-left-color: var(--yellow); }
+.tk.red { border-left-color: var(--loss); background: linear-gradient(90deg, rgba(229,72,77,.12), var(--surface-1)); }
+.tk.red .tx { color: var(--fg1); font-weight:600; }
+.tk.red .mn { color: var(--loss); }
+.tk.injury { border-left-color: var(--fg3); }
+.tk.injury .tx { color: var(--fg1); }
+.tk.penalty { border-left-color: var(--yellow); background: linear-gradient(90deg, rgba(255,223,0,.08), var(--surface-1)); }
+.tk.penalty .tx { color: var(--fg1); font-weight:600; }
+.out-tag { font-family:var(--font-mono); font-size:10px; font-weight:700; color:#fff; background:var(--loss); border-radius:var(--r-sm); padding:1px 6px; margin-left:6px; letter-spacing:.03em; white-space:nowrap; }
+.slot.out { opacity:.5; }
+.btn:disabled, .swapbtn:disabled { opacity:.4; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
 .tk.pens { border-left-color: var(--yellow); background: linear-gradient(90deg, rgba(255,223,0,.1), var(--surface-1)); }
 .tk.pens .tx { color: var(--fg1); font-weight:600; }
 .tk.kickoff, .tk.half, .tk.full { border-left-color: var(--blue); }
@@ -495,5 +505,25 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-fade, .tk, .die.rolling, .reveal .draw-card, .cf,
-  .pk-ball, .pk-keeper, .pk-flash { animation: none !important; transition: none !important; }
+  .pk-ball, .pk-keeper, .pk-flash, .howto-panel { animation: none !important; transition: none !important; }
 }
+
+/* ---------- HOW TO PLAY (overlay) ---------- */
+.howto-overlay { position:fixed; inset:0; z-index:400; display:flex; align-items:flex-start; justify-content:center; padding:5vh 16px; background:rgba(8,11,9,.72); backdrop-filter:blur(8px); overflow-y:auto; }
+.howto-panel { position:relative; width:100%; max-width:720px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--r-card); box-shadow:var(--shadow-lift); padding:28px 28px 36px; animation:howtoin .26s var(--ease-pop); }
+@keyframes howtoin { from { opacity:0; transform:translateY(14px) scale(.98); } to { opacity:1; transform:none; } }
+.howto-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:8px; }
+.howto-head h2 { font-size:1.6rem; font-weight:600; letter-spacing:-.01em; }
+.howto-head .tok { font-family:var(--font-mono); color:var(--green-bright); font-weight:500; font-size:1rem; display:block; margin-bottom:4px; }
+.howto-intro { color:var(--fg2); font-size:.95rem; margin:6px 0 22px; line-height:var(--lh-body); }
+.howto-sec { background:var(--surface-2); border:1px solid var(--hairline); border-radius:var(--r-md); padding:16px 18px; margin-bottom:12px; }
+.howto-sec h3 { font-size:1.05rem; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.howto-sec h3 .ic { font-size:1.1rem; }
+.howto-sec p { color:var(--fg2); font-size:.9rem; line-height:1.55; margin:0 0 6px; }
+.howto-sec p:last-child { margin-bottom:0; }
+.howto-sec ul { margin:6px 0 0; padding-left:18px; }
+.howto-sec li { color:var(--fg2); font-size:.9rem; line-height:1.5; margin-bottom:4px; }
+.howto-k { font-family:var(--font-mono); font-size:.85em; color:var(--yellow); background:rgba(255,223,0,.08); border:1px solid rgba(255,223,0,.2); border-radius:var(--r-sm); padding:1px 6px; white-space:nowrap; }
+.howto-f { font-family:var(--font-mono); font-size:.92em; color:var(--green-bright); }
+.howto-foot { margin-top:18px; display:flex; justify-content:center; }
+@media (max-width: 520px) { .howto-panel { padding:22px 18px 30px; } .howto-overlay { padding:2vh 10px; } }
