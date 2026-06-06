@@ -7,6 +7,8 @@
    ============================================================ */
 function PenaltyShootout({ home, away, sfx, onComplete }) {
   const C = window.CONFIG;
+  const t = (k, v) => window.I18N.t(k, v);
+  const zoneLabel = (z) => z === 'esq' ? t('ui.penalty.zoneLeft') : z === 'meio' ? t('ui.penalty.zoneMid') : t('ui.penalty.zoneRight');
   const beep = sfx || (() => {});
   const ZONES = C.PK_ZONES;            // ['esq','meio','dir']
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -129,8 +131,8 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
   }
 
   const promptTxt = phase === 'done' ? ''
-    : youKick ? `Cobrança de ${kicker.name} — escolha o canto`
-      : `${kicker.name} (${away.name}) vai bater — escolha o lado para defender`;
+    : youKick ? t('ui.penalty.kickPrompt', { name: kicker.name })
+      : t('ui.penalty.savePrompt', { name: kicker.name, team: away.name });
 
   const zoneCenter = { esq: 22, meio: 50, dir: 78 };
   const ballStyle = () => {
@@ -157,8 +159,8 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
   return (
     <div className="stage narrow screen-fade">
       <div className="shead">
-        <div><span className="tok">pênaltis</span><h2 style={{ marginTop: 4 }}>Decisão por pênaltis</h2></div>
-        <span className="meta">{sudden ? 'morte súbita' : `melhor de ${C.PK_ROUNDS}`}</span>
+        <div><span className="tok">{t('ui.penalty.tok')}</span><h2 style={{ marginTop: 4 }}>{t('ui.penalty.title')}</h2></div>
+        <span className="meta">{sudden ? t('ui.penalty.sudden') : t('ui.penalty.bestOf', { n: C.PK_ROUNDS })}</span>
       </div>
 
       {/* shootout scoreboard */}
@@ -191,9 +193,9 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
           {phase === 'aim' && (
             <div className="pk-targets">
               {ZONES.map(z => (
-                <button key={z} className="pk-target" onClick={() => commit(z)} aria-label={z}>
+                <button key={z} className="pk-target" onClick={() => commit(z)} aria-label={zoneLabel(z)}>
                   <span className="pk-target-ic">{youKick ? '🎯' : '🧤'}</span>
-                  <span className="pk-target-lb">{z === 'esq' ? 'Esquerda' : z === 'meio' ? 'Meio' : 'Direita'}</span>
+                  <span className="pk-target-lb">{zoneLabel(z)}</span>
                 </button>
               ))}
             </div>
@@ -201,7 +203,7 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
           {/* outcome flash */}
           {anim && phase !== 'aim' && (
             <div className={`pk-flash ${anim.outcome}`}>
-              {anim.outcome === 'goal' ? 'GOL!' : anim.outcome === 'save' ? 'DEFENDEU!' : 'PRA FORA!'}
+              {anim.outcome === 'goal' ? t('ui.penalty.goal') : anim.outcome === 'save' ? t('ui.penalty.save') : t('ui.penalty.miss')}
             </div>
           )}
         </div>
@@ -211,7 +213,7 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
       <div className="pk-prompt">
         {phase === 'done'
           ? <span className={`pk-result ${winner === 'home' ? 'win' : 'loss'}`}>
-              {winner === 'home' ? `✦ ${home.name} venceu nos pênaltis! ✦` : `${away.name} venceu nos pênaltis.`}
+              {winner === 'home' ? t('ui.penalty.winHome', { home: home.name }) : t('ui.penalty.winAway', { away: away.name })}
             </span>
           : <span className={youKick ? 'you-kick' : 'you-save'}>{promptTxt}</span>}
       </div>
@@ -219,9 +221,9 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
       <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14 }}>
         {phase === 'done'
           ? <button className="btn btn-green" style={{ fontSize: 16, padding: '14px 36px' }}
-              onClick={() => onComplete(score)}>Ver resultado →</button>
+              onClick={() => onComplete(score)}>{t('ui.penalty.seeResult')}</button>
           : phase === 'aim'
-            ? <button className="btn-mini" onClick={autoResolve}>Simular o resto ⏭</button>
+            ? <button className="btn-mini" onClick={autoResolve}>{t('ui.penalty.simRest')}</button>
             : null}
       </div>
     </div>
@@ -236,6 +238,8 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
    is fine here (same accepted exception as the shootout). */
 function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
   const C = window.CONFIG;
+  const t = (k, v) => window.I18N.t(k, v);
+  const zoneLabel = (z) => z === 'esq' ? t('ui.penalty.zoneLeft') : z === 'meio' ? t('ui.penalty.zoneMid') : t('ui.penalty.zoneRight');
   const beep = sfx || (() => {});
   const ZONES = C.PK_ZONES;
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -281,17 +285,17 @@ function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
     const rot = z === 'esq' ? -38 : z === 'dir' ? 38 : 0;
     return { left: zoneCenter[z] + '%', transform: `translateX(-50%) rotate(${rot}deg)` };
   };
-  const flashTxt = anim && (anim.outcome === 'goal' ? 'GOL!' : anim.outcome === 'save' ? 'DEFENDEU!' : 'PRA FORA!');
+  const flashTxt = anim && (anim.outcome === 'goal' ? t('ui.penalty.goal') : anim.outcome === 'save' ? t('ui.penalty.save') : t('ui.penalty.miss'));
   const prompt = youKick
-    ? `Pênalti a favor! ${taker ? taker.name : 'O cobrador'} vai bater — escolha o canto.`
-    : `Pênalti contra! ${taker ? taker.name : 'O adversário'} vai bater — escolha o lado para defender.`;
+    ? t('ui.penalty.imKick', { name: taker ? taker.name : t('ui.penalty.imKickFallback') })
+    : t('ui.penalty.imSave', { name: taker ? taker.name : t('ui.penalty.imSaveFallback') });
 
   return (
     <div className="howto-overlay" role="dialog" aria-modal="true" aria-label="Pênalti">
       <div className="howto-panel" style={{ maxWidth: 560 }}>
         <div className="shead" style={{ marginBottom: 12 }}>
-          <div><span className="tok">pênalti</span><h2 style={{ marginTop: 4 }}>Cobrança de pênalti</h2></div>
-          <span className="meta">{youKick ? 'você cobra' : 'você defende'}</span>
+          <div><span className="tok">{t('ui.penalty.imTok')}</span><h2 style={{ marginTop: 4 }}>{t('ui.penalty.imTitle')}</h2></div>
+          <span className="meta">{youKick ? t('ui.penalty.youKick') : t('ui.penalty.youSave')}</span>
         </div>
 
         <div className={`pk-stage ${anim ? 'shot-' + anim.outcome : ''}`}>
@@ -307,9 +311,9 @@ function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
             {phase === 'aim' && (
               <div className="pk-targets">
                 {ZONES.map(z => (
-                  <button key={z} className="pk-target" onClick={() => commit(z)} aria-label={z}>
+                  <button key={z} className="pk-target" onClick={() => commit(z)} aria-label={zoneLabel(z)}>
                     <span className="pk-target-ic">{youKick ? '🎯' : '🧤'}</span>
-                    <span className="pk-target-lb">{z === 'esq' ? 'Esquerda' : z === 'meio' ? 'Meio' : 'Direita'}</span>
+                    <span className="pk-target-lb">{zoneLabel(z)}</span>
                   </button>
                 ))}
               </div>
@@ -327,7 +331,7 @@ function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
 
         <div className="howto-foot">
           {phase === 'done' && (
-            <button className="btn btn-green" onClick={() => onComplete(anim.outcome)}>Continuar →</button>
+            <button className="btn btn-green" onClick={() => onComplete(anim.outcome)}>{t('ui.penalty.continue')}</button>
           )}
         </div>
       </div>

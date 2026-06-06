@@ -26,6 +26,7 @@
   --surface-2: #1E261F;  /* raised surfaces, hover rows, inputs */
   --surface-3: #283328;  /* borders-as-fill, active chips */
   --hairline:  #2A352B;  /* 1px borders / dividers */
+  --header-bg: rgba(13,18,14,.82);  /* sticky header backdrop (semi-transparent) */
 
   /* ---------- TEXT ---------- */
   --fg1: #FFFFFF;  /* primary text */
@@ -87,6 +88,41 @@
   --ease-smooth:  cubic-bezier(0, 0.99, 0.44, 0.99);     /* soft settle */
   --ease-line:    cubic-bezier(0.86, 0, 0.07, 1);        /* nav underline sweep */
   /* --ease-elastic-3 / --ease-elastic-4 come from Open Props above */
+}
+
+/* ============================================================
+   LIGHT THEME
+   Applied via [data-theme="light"] on <html>. Only surfaces, text,
+   hairlines, header backdrop and shadows/glow change — the BRAND
+   palette (green / yellow / blue) stays identical in both themes
+   (PRD RN04). Dark remains the default in :root above.
+   ============================================================ */
+:root[data-theme="light"] {
+  /* surfaces — light, faintly green-tinted */
+  --bg:        #F3F6F1;  /* page background */
+  --surface-1: #FFFFFF;  /* cards, panels */
+  --surface-2: #EAF0E8;  /* raised surfaces, hover rows, inputs */
+  --surface-3: #D8E2D5;  /* borders-as-fill, active chips, tracks */
+  --hairline:  #D3DDCF;  /* 1px borders / dividers */
+  --header-bg: rgba(243,246,241,.85);
+
+  /* text — dark ink on light surfaces */
+  --fg1: #10160F;  /* primary text */
+  --fg2: #45524A;  /* secondary / muted text */
+  --fg3: #6C7869;  /* tertiary / captions / placeholders */
+
+  /* keep near-black ink on solid brand fills */
+  --on-yellow: #0D120E;
+  --on-green:  #08130C;
+
+  /* slightly deeper green for adequate contrast as text/link on light */
+  --green-bright: #0B8F4B;
+
+  /* softer shadows on a light page; brand glow kept subtle */
+  --shadow-card: 0 5px 15px rgba(15,30,20,0.08);
+  --shadow-lift: 0 18px 40px rgba(0,168,89,0.12), 0 0 50px rgba(0,168,89,0.04);
+  --glow-green:  0 4px 15px rgba(0,168,89,0.22);
+  --glow-yellow: 0 4px 15px rgba(229,197,0,0.30);
 }
 
 /* ============================================================

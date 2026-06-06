@@ -9,11 +9,16 @@ function Flag({ code, className = '' }) {
   return <span className={`fi fi-${code} ${className}`}></span>;
 }
 
-/* the player's custom all-star "dream team" emblem */
+/* the player's custom all-star team emblem — a minimalist abstract mark
+   (stacked chevrons) coloured by token, legible in light and dark themes */
 function Crest({ className = '' }) {
   return (
-    <span className={`crest ${className}`} role="img" aria-label="Time dos Sonhos">
-      <span className="cr-star">★</span>
+    <span className={`crest ${className}`} role="img" aria-label={window.I18N.t('team.name')}>
+      <svg className="cr-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M5 13.5 L12 7 L19 13.5"></path>
+        <path d="M5 17.5 L12 11 L19 17.5"></path>
+      </svg>
     </span>
   );
 }
@@ -21,6 +26,14 @@ function Crest({ className = '' }) {
 /* renders a national flag, or the dream-team crest for the player */
 function TeamMark({ code, dream, className = '' }) {
   return dream ? <Crest className={className} /> : <Flag code={code} className={className} />;
+}
+
+/* localized round label/short. Knockout rounds resolve from I18N by id;
+   group rounds already carry their own (localized) text. */
+function roundText(r, kind) {
+  if (!r) return '';
+  if (r.stage === 'group') return r[kind] || '';
+  return window.I18N.t('round.' + r.id + '.' + kind);
 }
 
 function ovrClass(o) { return o >= 90 ? 'ovr-elite' : o >= 82 ? 'ovr-high' : 'ovr-mid'; }
@@ -53,24 +66,27 @@ function AttrBars({ attrs, masked = false }) {
   );
 }
 
-/* compact game header with breadcrumb trail */
-function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset, onHowTo }) {
+/* compact game header with breadcrumb trail, theme toggle + language picker */
+function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onToggleTheme, lang, onSetLang, onReset, onHowTo }) {
+  const t = (k, v) => window.I18N.t(k, v);
+  const C = window.CONFIG;
   const steps = [
-    { id: 'home', label: 'início' },
-    { id: 'draft', label: 'elenco' },
-    { id: 'campaign', label: 'campanha' },
+    { id: 'home', label: t('step.home') },
+    { id: 'draft', label: t('step.squad') },
+    { id: 'campaign', label: t('step.campaign') },
   ];
   const activeIdx = phase === 'home' ? 0 : phase === 'draft' ? 1 : 2;
+  const themeAria = theme === 'dark' ? t('header.themeToLight') : t('header.themeToDark');
   return (
     <header className="ghdr">
       <div className="ghdr-in">
         <span className="wm"><b>{'{'}</b>copa<b>{'}'}</b> draft</span>
         <div className="crumbs">
           {phase === 'campaign' ? (
-            <span className="campaign-tag"><Crest className="cr-inline" /> {window.CONFIG.TEAM_NAME}
+            <span className="campaign-tag"><Crest className="cr-inline" /> {t('team.name')}
               {round && <span className="ct-round"> · {round.label}</span>}</span>
           ) : (
-            <div className="psteps" role="list" aria-label="Progresso">
+            <div className="psteps" role="list" aria-label={t('header.progress')}>
               {steps.map((s, i) => (
                 <React.Fragment key={s.id}>
                   {i > 0 && <span className={`pline ${i <= activeIdx ? 'done' : ''}`} aria-hidden="true"></span>}
@@ -84,9 +100,33 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset, onHo
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="ghdr-controls">
+          {onSetLang && C.LANGS && (
+            <div className="lang-seg" role="group" aria-label={t('header.lang')}>
+              {C.LANGS.map(code => (
+                <button key={code} className={lang === code ? 'on' : ''} aria-pressed={lang === code}
+                  title={t('lang.' + code + 'Full')} onClick={() => onSetLang(code)}>{t('lang.' + code)}</button>
+              ))}
+            </div>
+          )}
+          {onToggleTheme && (
+            <button className="btn-icon" onClick={onToggleTheme} aria-label={themeAria} title={themeAria}>
+              {theme === 'dark' ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+                </svg>
+              ) : (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"></path>
+                </svg>
+              )}
+            </button>
+          )}
           {onHowTo && (
-            <button className="btn-icon" onClick={onHowTo} aria-label="Como jogar" title="Como jogar?">
+            <button className="btn-icon" onClick={onHowTo} aria-label={t('header.howtoAria')} title={t('header.howto')}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -95,8 +135,8 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset, onHo
               </svg>
             </button>
           )}
-          <button className="btn-icon" onClick={onToggleSound} aria-label={sound ? 'Desligar som' : 'Ligar som'}
-            title={sound ? 'Som ligado' : 'Som desligado'}>
+          <button className="btn-icon" onClick={onToggleSound} aria-label={sound ? t('header.soundDisable') : t('header.soundEnable')}
+            title={sound ? t('header.soundOn') : t('header.soundOff')}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 9v6h4l5 4V5L8 9H4z"></path>
@@ -106,7 +146,7 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, onReset, onHo
             </svg>
           </button>
           {phase !== 'home' && (
-            <button className="btn-icon" onClick={onReset} aria-label="Recomeçar" title="Recomeçar">
+            <button className="btn-icon" onClick={onReset} aria-label={t('header.reset')} title={t('header.reset')}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
@@ -135,9 +175,9 @@ function PlayerTile({ p, picked, isStar, disabled, mode, onClick }) {
       </div>
       <div className="ptile-sub">
         <PosPill pos={p.pos} />
-        <span>{p.age} anos</span>
-        {p.leader && <span className="lead-tag">LÍDER</span>}
-        {isStar && <span className="star-tag">★ CRAQUE</span>}
+        <span>{window.I18N.t('ui.common.age', { n: p.age })}</span>
+        {p.leader && <span className="lead-tag">{window.I18N.t('ui.common.leader')}</span>}
+        {isStar && <span className="star-tag">{window.I18N.t('ui.common.star')}</span>}
       </div>
       <AttrBars attrs={p.attrs} masked={hideRatings} />
     </button>
@@ -151,7 +191,7 @@ function Pitch({ starters, formation, starId, hideOvr }) {
   starters.forEach(p => g[p.pos] && g[p.pos].push(p));
   const cursor = { GOL: 0, ZAG: 0, LAT: 0, MEI: 0, ATA: 0 };
   return (
-    <div className="pitch" role="img" aria-label="Escalação no campo">
+    <div className="pitch" role="img" aria-label={window.I18N.t('ui.common.lineupAria')}>
       <div className="mid"></div>
       <div className="circle"></div>
       <div className="box top"></div>
@@ -184,11 +224,11 @@ function AchievementToast({ ach }) {
     <div className="ach-toast" role="status">
       <span className="ach-ic">{ach.icon}</span>
       <div className="ach-tx">
-        <span className="ach-eyebrow">Conquista desbloqueada</span>
+        <span className="ach-eyebrow">{window.I18N.t('ach.unlocked')}</span>
         <span className="ach-name">{ach.name}</span>
       </div>
     </div>
   );
 }
 
-Object.assign(window, { Flag, Crest, TeamMark, ovrClass, ratingClass, PosPill, AttrBars, GameHeader, PlayerTile, Pitch, AchievementToast });
+Object.assign(window, { Flag, Crest, TeamMark, roundText, ovrClass, ratingClass, PosPill, AttrBars, GameHeader, PlayerTile, Pitch, AchievementToast });

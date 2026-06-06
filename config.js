@@ -109,4 +109,39 @@ window.CONFIG = {
     { id: 'semi',    label: 'Semifinal',        short: 'Semi',    n: 3 },
     { id: 'final',   label: 'Final',            short: 'Final',   n: 4 },
   ],
+
+  /* ---------- Group stage (before the knockout) ---------- */
+  GROUP_SIZE: 4,                                  // teams per group (player + GROUP_SIZE-1 rivals)
+  GROUP_QUALIFY: 2,                               // top-N advance to the knockout
+  GROUP_POINTS: { win: 3, draw: 1, loss: 0 },     // points per result for the table
+
+  /* ---------- Opponent strength scaling by phase ----------
+     Each phase pulls opponents toward a target spot in the squad-strength
+     range (0 = weakest pool, 1 = strongest). The group is the softest pool;
+     difficulty ramps up to the final. OPP_STRENGTH_BIAS sharpens the seeded
+     weighting toward that target (0 = uniform draw). Keys: 'grupos' + ROUND ids. */
+  PHASE_STRENGTH: { grupos: 0.12, oitavas: 0.34, quartas: 0.56, semi: 0.78, final: 1.0 },
+  OPP_STRENGTH_BIAS: 5,
+
+  /* ---------- Draft draw bias ----------
+     Stronger selections (by squad average) are a touch more likely to come up
+     on the die. Small on purpose — every eligible selection stays possible.
+     0 = uniform (legacy behaviour). */
+  DRAFT_STRENGTH_BIAS: 0.05,
+
+  /* ---------- Match speed (ticker pacing only — result is unaffected) ---------- */
+  MATCH_SPEEDS: {
+    normal: { durationMs: 34000, label: 'Normal' },
+    rapido: { durationMs: 18000, label: 'Rápido' },
+    super:  { durationMs: 9000,  label: 'Super rápido' },
+  },
+  MATCH_SPEED_DEFAULT: 'normal',
+
+  /* ---------- Internationalization (i18n) ---------- */
+  LANGS: ['pt', 'en', 'es'],   // supported UI/narration languages
+  DEFAULT_LANG: 'pt',          // fallback language (and dictionary fallback)
+
+  /* ---------- Theme ---------- */
+  THEMES: ['dark', 'light'],   // supported color themes
+  DEFAULT_THEME: 'dark',       // used only when the system preference is unknown
 };

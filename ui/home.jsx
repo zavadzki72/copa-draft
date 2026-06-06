@@ -71,80 +71,78 @@ function FormationSelect({ options, value, onChange }) {
   );
 }
 
-function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo }) {
+function HomeScreen({ mode, setMode, formation, setFormation, speed, setSpeed, canResume, onResume, profile, onStart, onHowTo }) {
+  const t = (k, v) => window.I18N.t(k, v);
+  const SP = window.CONFIG.MATCH_SPEEDS;
+  const spKey = { normal: 'spNormal', rapido: 'spRapido', super: 'spSuper' };
+  const speedOpts = Object.keys(SP).map(id => ({ id, label: t('ui.home.' + (spKey[id] || 'spNormal')) }));
+  const fHint = { '4-3-3': 'fOfensivo', '4-4-2': 'fEquilibrado', '3-5-2': 'fAlas', '4-5-1': 'fCauteloso', '5-3-2': 'fDefensivo', '3-4-3': 'fOusado' };
+  const formationOpts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id, hint: t('ui.home.' + (fHint[id] || 'fEquilibrado')) }));
   return (
     <div className="stage screen-fade">
       <div className="home-hero">
-        <span className="eyebrow">⚽ jogo de copa do mundo</span>
-        <h1>Monte o <span className="hl">time dos sonhos</span><br />e ganhe a <span className="yl">Copa</span>.</h1>
-        <p className="sub">
-          A cada vaga do elenco você rola o dado, recebe uma seleção da história e escala
-          um craque dela. Junte ídolos de várias Copas num só time e dispute o mata-mata
-          numa simulação minuto a minuto estilo Brasfoot.
-        </p>
+        <span className="eyebrow">{t('ui.home.eyebrow')}</span>
+        <h1>{t('ui.home.title1')} <span className="hl">{t('ui.home.titleDream')}</span><br />{t('ui.home.title2')} <span className="yl">{t('ui.home.titleCup')}</span>.</h1>
+        <p className="sub">{t('ui.home.sub')}</p>
       </div>
 
       <div className="dice-wrap">
         <Die value={5} rolling={false} />
         {canResume && (
           <button className="btn btn-yellow" style={{ fontSize: 17, padding: '15px 38px' }} onClick={onResume}>
-            ▶ Continuar campanha
+            {t('ui.home.resume')}
           </button>
         )}
         <button className={`btn ${canResume ? 'btn-ghost' : 'btn-green'}`} style={{ fontSize: 17, padding: '15px 38px' }} onClick={onStart}>
-          🎲 {canResume ? 'Começar de novo' : 'Começar o draft'}
+          🎲 {canResume ? t('ui.home.startNew') : t('ui.home.startDraft')}
         </button>
         {onHowTo && (
-          <button className="btn-mini" onClick={onHowTo}>📖 Como jogar?</button>
+          <button className="btn-mini" onClick={onHowTo}>{t('ui.home.howto')}</button>
         )}
         {profile && profile.plays > 0 && (
-          <span className="home-stats">{profile.plays} campanha(s) · {profile.titles} título(s) · {(profile.achievements || []).length}/{window.ACHIEVEMENTS.LIST.length} conquistas</span>
+          <span className="home-stats">{t('ui.home.stats', { plays: profile.plays, titles: profile.titles, ach: (profile.achievements || []).length, total: window.ACHIEVEMENTS.LIST.length })}</span>
         )}
       </div>
 
       <div className="steps">
         <div className="step">
           <div className="n">01</div>
-          <h4>Role</h4>
-          <p>A cada vaga do time, o dado sorteia uma seleção de uma Copa da história.</p>
+          <h4>{t('ui.home.s1t')}</h4>
+          <p>{t('ui.home.s1d')}</p>
         </div>
         <div className="step">
           <div className="n">02</div>
-          <h4>Escolha</h4>
-          <p>Escale um jogador daquela seleção para a posição — e siga até completar o elenco.</p>
+          <h4>{t('ui.home.s2t')}</h4>
+          <p>{t('ui.home.s2d')}</p>
         </div>
         <div className="step">
           <div className="n">03</div>
-          <h4>Conquiste</h4>
-          <p>Encare oitavas, quartas, semi e final. Vencer 7 a 0 desbloqueia a lenda.</p>
+          <h4>{t('ui.home.s3t')}</h4>
+          <p>{t('ui.home.s3d')}</p>
         </div>
       </div>
 
       <div className="setgrid">
         <div className="setcard">
-          <span className="lab">Modo de jogo</span>
+          <span className="lab">{t('ui.home.modeLabel')}</span>
           <Segmented
             value={mode} onChange={setMode}
             options={[
-              { id: 'classico', label: 'Clássico', hint: 'notas visíveis' },
-              { id: 'almanaque', label: 'De Almanaque', hint: 'escale de memória' },
+              { id: 'classico', label: t('ui.home.modeClassic'), hint: t('ui.home.modeClassicHint') },
+              { id: 'almanaque', label: t('ui.home.modeAlmanac'), hint: t('ui.home.modeAlmanacHint') },
             ]}
           />
         </div>
         <div className="setcard">
-          <span className="lab">Formação</span>
-          <FormationSelect
-            value={formation} onChange={setFormation}
-            options={[
-              { id: '4-3-3', label: '4-3-3', hint: 'ofensivo' },
-              { id: '4-4-2', label: '4-4-2', hint: 'equilibrado' },
-              { id: '3-5-2', label: '3-5-2', hint: 'alas' },
-              { id: '4-5-1', label: '4-5-1', hint: 'cauteloso' },
-              { id: '5-3-2', label: '5-3-2', hint: 'defensivo' },
-              { id: '3-4-3', label: '3-4-3', hint: 'ousado' },
-            ]}
-          />
+          <span className="lab">{t('ui.home.formationLabel')}</span>
+          <FormationSelect value={formation} onChange={setFormation} options={formationOpts} />
         </div>
+        {speed != null && setSpeed && (
+          <div className="setcard">
+            <span className="lab">{t('ui.home.speedLabel')}</span>
+            <Segmented value={speed} onChange={setSpeed} options={speedOpts} />
+          </div>
+        )}
       </div>
     </div>
   );

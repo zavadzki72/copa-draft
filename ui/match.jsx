@@ -7,7 +7,7 @@ function StaminaBar({ fatigue }) {
   const pct = window.TEAM.staminaPct(fatigue);
   const lvl = window.TEAM.staminaLevel(fatigue);
   return (
-    <span className={`stamina ${lvl}`} title={`Energia ${pct}%`}>
+    <span className={`stamina ${lvl}`} title={window.I18N.t('ui.match.energyTitle', { pct })}>
       <span className="stamina-bar"><i style={{ width: pct + '%' }}></i></span>
     </span>
   );
@@ -15,6 +15,7 @@ function StaminaBar({ fatigue }) {
 
 function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, playerStatus, opponentXI, opponentAvg, onStart }) {
   const C = window.CONFIG;
+  const t = (k, v) => window.I18N.t(k, v);
   const opp = round.opponent;
   const keyMen = [...opponentXI].sort((a, b) => b.overall - a.overall).slice(0, 3);
 
@@ -58,8 +59,8 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
   function outTag(id) {
     const s = stOf(id);
     if (!s) return null;
-    const label = s.kind === 'suspended' ? 'SUSPENSO' : `LESIONADO ${s.n}f`;
-    return <span className="out-tag" title={s.kind === 'suspended' ? 'Suspenso nesta fase' : `Lesionado por ${s.n} fase(s)`}>{label}</span>;
+    const label = s.kind === 'suspended' ? t('ui.match.tagSuspended') : t('ui.match.tagInjured', { n: s.n });
+    return <span className="out-tag" title={s.kind === 'suspended' ? t('ui.match.suspendedTitle') : t('ui.match.injuredTitle', { n: s.n })}>{label}</span>;
   }
 
   const grpStarters = (pos) => xi.map((p, i) => ({ p, i })).filter(o => o.p.pos === pos);
@@ -69,23 +70,23 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
     <div className="stage screen-fade">
       <div className="shead">
         <div>
-          <span className="tok">{round.id}</span>
-          <h2 style={{ marginTop: 4 }}>{round.label}</h2>
+          <span className="tok">{window.roundText(round, 'short').toLowerCase()}</span>
+          <h2 style={{ marginTop: 4 }}>{window.roundText(round, 'label')}</h2>
         </div>
         <button className="btn btn-yellow start-top" disabled={!canStart}
-          onClick={() => canStart && onStart(xi, res)}>▶ Iniciar partida</button>
+          onClick={() => canStart && onStart(xi, res)}>{t('ui.match.start')}</button>
       </div>
 
       <div className="vs-panel" style={{ marginBottom: 22 }}>
         <div className="vs-side">
           <Crest />
           <span className="tn">{me.name}</span>
-          <span className="cup">all-star</span>
+          <span className="cup">{t('ui.match.allstar')}</span>
           <span className="ovr">{playerAvg}</span>
         </div>
         <div className="vs-mid">
           <span className="x">×</span>
-          <span className="rnd">{round.short}</span>
+          <span className="rnd">{window.roundText(round, 'short')}</span>
         </div>
         <div className="vs-side">
           <Flag code={opp.code} />
@@ -97,7 +98,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 
       <div className="prematch-grid">
         <div>
-          <div className="shead"><span className="tok">escalação</span><span className="meta">{formation}</span></div>
+          <div className="shead"><span className="tok">{t('ui.match.lineupTok')}</span><span className="meta">{formation}</span></div>
           <Pitch starters={xi} formation={formation} starId={starId} />
         </div>
 
@@ -105,49 +106,46 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           {diff < 0 ? (
             <div className="warn" style={{ marginBottom: 14 }}>
               <span aria-hidden="true">⚠️</span>
-              <span><b>Azarão.</b> Na média efetiva o adversário leva vantagem ({opponentAvg} vs {playerAvg}).
-                {tiredCount > 0 && ' Há titulares no vermelho — pense em rodar o elenco.'}</span>
+              <span><b>{t('ui.match.underdogB')}</b> {t('ui.match.underdog', { opp: opponentAvg, you: playerAvg })}
+                {tiredCount > 0 && t('ui.match.tiredHint')}</span>
             </div>
           ) : (
             <div className="warn" style={{ marginBottom: 14, background: 'rgba(0,168,89,.08)', borderColor: 'rgba(0,168,89,.25)' }}>
               <span aria-hidden="true">✅</span>
-              <span><b>Favorito.</b> Sua média efetiva é superior ({playerAvg} vs {opponentAvg}).
-                {tiredCount > 0 && ' Mas cuidado com o desgaste de alguns titulares.'}</span>
+              <span><b>{t('ui.match.favB')}</b> {t('ui.match.fav', { you: playerAvg, opp: opponentAvg })}
+                {tiredCount > 0 && t('ui.match.favTired')}</span>
             </div>
           )}
 
           {youngUnder.length > 0 && (
             <div className="warn" style={{ marginBottom: 14, background: 'rgba(79,134,255,.08)', borderColor: 'rgba(79,134,255,.28)' }}>
               <span aria-hidden="true">🎓</span>
-              <span><b>Pressão da garotada.</b> {pressuredCount > 0
-                ? <>Os sub-23 sentem o peso do mata-mata (−{round.n * C.PRESSURE_PER_ROUND} no overall nesta fase). {hasLeader
-                    ? <>Um <b>líder</b> em campo reduz isso pela metade.</>
-                    : <>Escale um <b>líder</b> para amenizar.</>}</>
-                : <>Sem pressão nesta fase inicial — ela cresce a cada rodada do mata-mata.</>}</span>
+              <span><b>{t('ui.match.youthB')}</b> {pressuredCount > 0
+                ? <>{t('ui.match.youthOn', { pen: round.n * C.PRESSURE_PER_ROUND })}{hasLeader ? t('ui.match.youthLeader') : t('ui.match.youthNoLeader')}</>
+                : t('ui.match.youthNone')}</span>
             </div>
           )}
 
           {!canStart && (
             <div className="warn" style={{ marginBottom: 14, background: 'rgba(229,72,77,.1)', borderColor: 'rgba(229,72,77,.35)' }}>
               <span aria-hidden="true">🚫</span>
-              <span><b>Desfalques na escalação.</b> {blockedXI.map((p, i) => (
-                <React.Fragment key={p.id}>{i > 0 ? ', ' : ''}<b>{p.name}</b> ({stOf(p.id).kind === 'suspended' ? 'suspenso' : `lesionado ${stOf(p.id).n}f`})</React.Fragment>
-              ))}. Substitua por reservas disponíveis antes de iniciar — trocas forçadas não gastam substituição.</span>
+              <span><b>{t('ui.match.missingB')}</b> {blockedXI.map((p, i) => (
+                <React.Fragment key={p.id}>{i > 0 ? ', ' : ' '}<b>{p.name}</b> ({stOf(p.id).kind === 'suspended' ? t('ui.match.suspended') : t('ui.match.injured', { n: stOf(p.id).n })})</React.Fragment>
+              ))}{t('ui.match.missingTail')}</span>
             </div>
           )}
 
           {/* SUBSTITUTIONS / rotation */}
           <div className="squadbox">
             <div className="hd">
-              <h3>Substituições</h3>
+              <h3>{t('ui.match.subs')}</h3>
               <span className={`cnt ${subsUsed > 0 ? 'full' : ''}`} style={subsUsed === 0 ? { color: 'var(--fg3)' } : {}}>
-                {subsUsed}/{C.SUBS_MAX} usadas
+                {t('ui.match.subsUsed', { used: subsUsed, max: C.SUBS_MAX })}
               </span>
             </div>
             {sel != null && (
               <div className="sub-hint">
-                Entrando: <b>{res.find(p => p.id === sel).name}</b> ({C.POS_LABEL[res.find(p => p.id === sel).pos]}).
-                Toque num titular <b>{res.find(p => p.id === sel).pos}</b> para trocar.
+                {t('ui.match.subHint', { name: res.find(p => p.id === sel).name, pos: res.find(p => p.id === sel).pos })}
               </div>
             )}
             <div className="slot-list">
@@ -164,9 +162,9 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                       {p.id === starId && <span className="star-dot">★ </span>}
                       {p.code && <Flag code={p.code} className="slot-flag" />} {p.name}
                       {outTag(p.id)}
-                      {p.leader && <span className="lead-tag">LÍDER</span>}
-                      {p.age < C.PRESSURE_U_AGE && <span className="young-tag" title={`${p.age} anos`}>SUB-23</span>}
-                      {pr > 0 && <span className="press-tag" title="Pressão do mata-mata">pressão −{pr}</span>}
+                      {p.leader && <span className="lead-tag">{t('ui.common.leader')}</span>}
+                      {p.age < C.PRESSURE_U_AGE && <span className="young-tag" title={t('ui.common.age', { n: p.age })}>{t('ui.match.young')}</span>}
+                      {pr > 0 && <span className="press-tag" title={t('ui.match.pressTitle')}>{t('ui.match.pressTag', { n: pr })}</span>}
                     </span>
                     <StaminaBar fatigue={f} />
                     <span className="ov">{effOvr(p)}{(f + pr) > 0 && <span className="ov-pen"> −{f + pr}</span>}</span>
@@ -174,7 +172,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                 );
               })}
             </div>
-            <div className="bench-head">Reservas</div>
+            <div className="bench-head">{t('ui.match.bench')}</div>
             <div className="slot-list">
               {res.map(p => {
                 const f = window.TEAM.fatigueOf(fatigue, p.id);
@@ -187,7 +185,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                     <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}{outTag(p.id)}</span>
                     <StaminaBar fatigue={f} />
                     <span className="ov">{effOvr(p)}</span>
-                    <button className="swapbtn" title={out ? 'Indisponível' : 'Escalar este reserva'} disabled={!!out}
+                    <button className="swapbtn" title={out ? t('ui.match.unavailable') : t('ui.match.fieldReserve')} disabled={!!out}
                       onClick={(e) => { e.stopPropagation(); if (!out) setSel(active ? null : p.id); }}>
                       {active ? '✕' : '⇄'}
                     </button>
@@ -198,7 +196,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           </div>
 
           <div className="squadbox" style={{ marginTop: 16 }}>
-            <div className="hd"><h3>Adversário</h3><span className="cnt" style={{ color: 'var(--fg3)' }}>destaques</span></div>
+            <div className="hd"><h3>{t('ui.match.opponent')}</h3><span className="cnt" style={{ color: 'var(--fg3)' }}>{t('ui.match.highlights')}</span></div>
             <div className="slot-list">
               {keyMen.map(p => (
                 <div className="slot" key={p.id}>
@@ -215,7 +213,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
         <button className="btn btn-yellow" style={{ fontSize: 16, padding: '15px 40px' }}
           disabled={!canStart} onClick={() => canStart && onStart(xi, res)}>
-          ▶ Iniciar partida
+          {t('ui.match.start')}
         </button>
       </div>
     </div>
@@ -223,12 +221,22 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 }
 
 /* ---------- LIVE MATCH TICKER ---------- */
-function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pendingPen }) {
+function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onShootout, onPenalty, pendingPen }) {
   const beep = sfx || (() => {});
+  const C = window.CONFIG;
+  const t = (k, v) => window.I18N.t(k, v);
+  const spLabel = (id) => t('ui.home.' + ({ normal: 'spNormal', rapido: 'spRapido', super: 'spSuper' }[id] || 'spNormal'));
+  const SP = C.MATCH_SPEEDS;
   const maxMinute = log.extraTime ? 120 : 90;
-  const DURATION_MS = 34000;
   const TICK = 90;
-  const step = maxMinute / (DURATION_MS / TICK);
+  // pacing only — the result is fixed in `log`. Speed is changeable mid-match;
+  // stepRef is read each tick so a change takes effect without resetting the clock.
+  const [localSpeed, setLocalSpeed] = useState(speed && SP[speed] ? speed : C.MATCH_SPEED_DEFAULT);
+  const durationMs = (SP[localSpeed] || SP[C.MATCH_SPEED_DEFAULT]).durationMs;
+  const stepRef = useRef(0);
+  stepRef.current = maxMinute / (durationMs / TICK);
+  useEffect(() => { if (speed && SP[speed]) setLocalSpeed(speed); }, [speed]); // eslint-disable-line
+  function changeSpeed(v) { setLocalSpeed(v); if (onSpeedChange) onSpeedChange(v); beep('select'); }
 
   const [clock, setClock] = useState(0);
   const [done, setDone] = useState(false);
@@ -247,8 +255,15 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
   const goalsSeen = useRef(0);
   const whistled = useRef(false);
   useEffect(() => {
-    const gc = shown.filter(e => e.type === 'goal').length;
-    if (gc > goalsSeen.current) { goalsSeen.current = gc; beep('goal'); }
+    const goalsShown = shown.filter(e => e.type === 'goal');
+    const gc = goalsShown.length;
+    if (gc > goalsSeen.current) {
+      goalsSeen.current = gc;
+      // SFX depends on the side of the just-revealed goal: celebratory for the
+      // player (home), sober for the opponent (away). Neutral events have no side.
+      const last = goalsShown[gc - 1];
+      beep(last && last.side === 'away' ? 'goalAway' : 'goal');
+    }
     if (done && !whistled.current) { whistled.current = true; beep('whistle'); }
   }); // eslint-disable-line
 
@@ -256,7 +271,7 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
     if (reduced) { finishNow(); return; }
     const iv = setInterval(() => {
       if (pausedRef.current) return;               // frozen for an open penalty
-      clockRef.current += step;
+      clockRef.current += stepRef.current;
 
       // pause just before revealing an interactive penalty (hand it to the UI)
       if (!skipRef.current && onPenalty) {
@@ -303,7 +318,7 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
   const score = lastGoal ? lastGoal.score : { home: 0, away: 0 };
 
   const cm = Math.min(Math.ceil(clock), maxMinute);
-  const clockTxt = cm <= 90 ? `${cm}'` : `${cm}' (PRO)`;
+  const clockTxt = cm <= 90 ? `${cm}'` : `${cm}'${t('ui.match.etSuffix')}`;
   const pct = (clock / maxMinute) * 100;
 
   // reverse for newest-on-top feed
@@ -311,7 +326,7 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
 
   return (
     <div className="stage narrow screen-fade">
-      <div className="scoreboard" aria-label={`Placar ${log.home.name} ${score.home}, ${log.away.name} ${score.away}`}>
+      <div className="scoreboard" aria-label={t('ui.match.scoreAria', { home: log.home.name, hs: score.home, away: log.away.name, as: score.away })}>
         <div className="sb-team">
           <TeamMark code={log.home.code} dream={log.home.dream} />
           <span className="tn">{log.home.name}</span>
@@ -320,7 +335,7 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
           <div className="sb-score">{score.home}<span style={{ color: 'var(--fg3)', margin: '0 10px' }}>–</span>{score.away}</div>
           <div className="sb-clock">
             {!done && <span className="clock-dot"></span>}
-            {done ? 'Fim de jogo' : clockTxt}
+            {done ? t('ui.match.fullTime') : clockTxt}
           </div>
         </div>
         <div className="sb-team away">
@@ -332,18 +347,28 @@ function MatchScreen({ log, me, round, sfx, onFinish, onShootout, onPenalty, pen
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
         <span className="meta" style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg3)', fontSize: 13 }}>
-          {round.label} · {me.name}
+          {window.roundText(round, 'label')} · {me.name}
         </span>
-        {!done
-          ? <button className="btn-mini" onClick={finishNow}>Pular ⏭</button>
-          : log.needsShootout
-            ? <button className="btn btn-yellow" onClick={onShootout}>Ir para os pênaltis →</button>
-            : <button className="btn btn-green" onClick={onFinish}>Ver resultado →</button>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {!done && (
+            <div className="speed-mini" role="group" aria-label={t('ui.home.speedLabel')}>
+              {Object.keys(SP).map(id => (
+                <button key={id} className={localSpeed === id ? 'on' : ''}
+                  title={spLabel(id)} onClick={() => changeSpeed(id)}>{spLabel(id)}</button>
+              ))}
+            </div>
+          )}
+          {!done
+            ? <button className="btn-mini" onClick={finishNow}>{t('ui.match.skip')}</button>
+            : log.needsShootout
+              ? <button className="btn btn-yellow" onClick={onShootout}>{t('ui.match.toShootout')}</button>
+              : <button className="btn btn-green" onClick={onFinish}>{t('ui.match.seeResult')}</button>}
+        </div>
       </div>
 
       <div className="ticker" role="log" aria-live="polite" ref={tickerRef}>
         {feed.map((e, i) => (
-          <div className={`tk ${e.type}`} key={`${e.minute}-${i}-${e.text.slice(0, 8)}`}>
+          <div className={`tk ${e.type} ${e.side === 'away' ? 'away' : ''}`} key={`${e.minute}-${i}-${e.text.slice(0, 8)}`}>
             <span className="mn">{e.minute > 0 ? `${e.minute}'` : '•'}</span>
             <span className="tx">{e.text}</span>
           </div>
