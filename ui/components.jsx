@@ -257,8 +257,10 @@ function Pitch({ starters, formation, starId, hideOvr }) {
 
   // map each row to a vertical band (GK at own goal → attackers near the top)
   // and spread players across the width; x raw, y kept off the touchlines.
+  // The GK sits well clear of the defence so its (downward) label never
+  // collides with the defenders' labels.
   const nRows = rows.length;
-  const yForRow = (ri) => ri === 0 ? 87 : 72 - ((ri - 1) / Math.max(1, nRows - 2)) * 52;
+  const yForRow = (ri) => ri === 0 ? 88 : 66 - ((ri - 1) / Math.max(1, nRows - 2)) * 48;
   const xForCol = (ci, count) => {
     if (count <= 1) return 50;
     const margin = count >= 5 ? 12 : count >= 4 ? 15 : 22;

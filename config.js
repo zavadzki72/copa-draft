@@ -32,6 +32,13 @@ window.CONFIG = {
   RATING_MIN: 4.0,
   RATING_MAX: 10.0,
 
+  /* ---------- Captain & chemistry boost ----------
+     The chosen captain performs above himself, and lifts teammates drafted
+     from his SAME historical selection (same team + cup) — reward for building
+     a core around one squad. Applied to effective overall in the match. */
+  CAPTAIN_OVR_BOOST: 4,     // o capitão ganha +N de overall efetivo
+  CHEMISTRY_OVR_BOOST: 2,   // parceiros da mesma seleção do capitão ganham +N
+
   /* ---------- Pressure (youth) — Phase 3 ---------- */
   PRESSURE_PER_ROUND: 2,  // sub-23 perdem rodada*2 de overall efetivo
   PRESSURE_U_AGE: 23,
@@ -41,8 +48,9 @@ window.CONFIG = {
   FATIGUE_OLD_AGE: 30,
   FATIGUE_OLD: 2,         // 30+ : +2 cansaço por jogo disputado
   FATIGUE_YOUNG: 1,       // <30 : +1 cansaço por jogo disputado
-  FATIGUE_REST_RECOVERY: 2, // reserva não utilizado recupera por rodada
-  FATIGUE_MAX: 14,        // teto de cansaço acumulado
+  // reserva que fica de fora da partida descansa por INTEIRO (cansaço zera)
+  FATIGUE_MAX: 14,        // teto de cansaço acumulado (afeta só a barra de energia)
+  FATIGUE_PENALTY_MAX: 5, // teto da PENALIDADE de cansaço no overall efetivo (mais leve)
   STAMINA_PER_PT: 7,      // % de energia perdida por ponto de cansaço (display)
   STAMINA_FLOOR: 12,      // energia mínima exibida
   SUBS_MAX: 3,            // substituições de rodízio permitidas por partida

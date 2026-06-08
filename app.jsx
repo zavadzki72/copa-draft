@@ -237,13 +237,16 @@ function App() {
 
   function startMatch(starters, bench) {
     setLineup({ starters, bench });
+    // persist the pre-match arrangement: subbed-out players become reserves and
+    // the ones brought in become starters for the rest of the campaign.
+    setTeam(t => ({ ...t, starters, bench }));
     const ar = activeRound;
     const isGroup = ar.stage === 'group';
     const tiredStarters = window.TEAM.applyFatigue(starters, fatigue);
     const tiredBench = window.TEAM.applyFatigue(bench, fatigue);
-    const origIds = new Set(team.starters.map(p => p.id));
-    const subsLeft = Math.max(0, C.SUBS_MAX - starters.filter(p => !origIds.has(p.id)).length);
-    const home = window.TEAM.makeDreamSide(tiredStarters, formation, 'home', tiredBench, subsLeft);
+    // the in-match sub budget (injury cover) is independent of how freely you
+    // arranged the XI before kick-off; the captain lifts his selection-mates.
+    const home = window.TEAM.makeDreamSide(tiredStarters, formation, 'home', tiredBench, C.SUBS_MAX, team.starId);
     const away = window.TEAM.makeSide(ar.opponent, oppXI, formation, 'away');
     const seed = isGroup
       ? window.RNG.seedFrom(`grp-player-${runSeed}-${ar.fixtureRound}-${ar.opponent.id}`)

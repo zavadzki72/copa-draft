@@ -27,15 +27,16 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
   const stOf = (id) => window.TEAM.statusOf(playerStatus, id);   // null when available
   const sameKind = (a, b) => (a.pos === 'GOL') === (b.pos === 'GOL'); // keeper<->keeper, outfield<->outfield
   const xiIds = new Set(xi.map(p => p.id));
-  // only TACTICAL rotations (swapping out an AVAILABLE starter) count toward the budget;
-  // replacing a suspended/injured starter is a forced, free substitution.
-  const subsUsed = starters.filter(o => !xiIds.has(o.id) && !stOf(o.id)).length;
   const blockedXI = xi.filter(p => stOf(p.id));                  // unavailable players still in the XI
   const canStart = blockedXI.length === 0;
 
   const hasLeader = xi.some(p => p.leader);
+  // the captain boost only counts while the captain is actually in the XI
+  const captain = xiIds.has(starId) ? xi.find(p => p.id === starId) : null;
+  const boostOf = (p) => window.TEAM.captainChemBoost(p, captain, C);
+  const fatPen = (p) => window.TEAM.fatiguePenalty(fatigue, p.id);  // capped fatigue hit
   const pressOf = (p) => window.TEAM.pressureOf(p, round.n, hasLeader);
-  const effOvr = (p) => window.TEAM.effInMatch(p, fatigue, round.n, hasLeader);
+  const effOvr = (p) => window.TEAM.effInMatch(p, fatigue, round.n, hasLeader) + boostOf(p);
   const playerAvg = xi.length ? Math.round(xi.reduce((s, p) => s + effOvr(p), 0) / xi.length) : 0;
   const diff = playerAvg - opponentAvg;
   const tiredCount = xi.filter(p => window.TEAM.staminaLevel(window.TEAM.fatigueOf(fatigue, p.id)) === 'spent').length;
@@ -48,9 +49,9 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
     const sp = xi[starterIdx];
     if (!bp || stOf(bp.id)) return;                   // cannot field a suspended/injured reserve
     const forcedOut = origIds.has(sp.id) && !!stOf(sp.id);   // replacing an unavailable starter is free
-    // tactical sub: exact position; forced replacement: same kind (avoids softlock w/o an exact reserve)
+    // lineup arrangement before kick-off is unlimited; only the position must match
+    // (forced replacement of an unavailable starter relaxes to same kind).
     if (forcedOut ? !sameKind(bp, sp) : bp.pos !== sp.pos) return;
-    if (origIds.has(sp.id) && !forcedOut && subsUsed >= C.SUBS_MAX) return;
     const nx = [...xi]; nx[starterIdx] = bp;
     const nr = res.map(p => p.id === sel ? sp : p);
     setXi(nx); setRes(nr); setSel(null);
@@ -66,8 +67,44 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
   const grpStarters = (pos) => xi.map((p, i) => ({ p, i })).filter(o => o.p.pos === pos);
   const POS_ORDER = ['GOL', 'ZAG', 'LAT', 'MEI', 'ATA'];
 
+  // matchup advisories — shown at the very TOP of the pre-match screen
+  const warningsBlocks = (
+    <>
+      {diff < 0 ? (
+        <div className="warn" style={{ marginBottom: 10 }}>
+          <span aria-hidden="true">⚠️</span>
+          <span><b>{t('ui.match.underdogB')}</b> {t('ui.match.underdog', { opp: opponentAvg, you: playerAvg })}
+            {tiredCount > 0 && t('ui.match.tiredHint')}</span>
+        </div>
+      ) : (
+        <div className="warn" style={{ marginBottom: 10, background: 'rgba(0,168,89,.08)', borderColor: 'rgba(0,168,89,.25)' }}>
+          <span aria-hidden="true">✅</span>
+          <span><b>{t('ui.match.favB')}</b> {t('ui.match.fav', { you: playerAvg, opp: opponentAvg })}
+            {tiredCount > 0 && t('ui.match.favTired')}</span>
+        </div>
+      )}
+      {youngUnder.length > 0 && (
+        <div className="warn" style={{ marginBottom: 10, background: 'rgba(79,134,255,.08)', borderColor: 'rgba(79,134,255,.28)' }}>
+          <span aria-hidden="true">🎓</span>
+          <span><b>{t('ui.match.youthB')}</b> {pressuredCount > 0
+            ? <>{t('ui.match.youthOn', { pen: round.n * C.PRESSURE_PER_ROUND })}{hasLeader ? t('ui.match.youthLeader') : t('ui.match.youthNoLeader')}</>
+            : t('ui.match.youthNone')}</span>
+        </div>
+      )}
+      {!canStart && (
+        <div className="warn" style={{ marginBottom: 10, background: 'rgba(229,72,77,.1)', borderColor: 'rgba(229,72,77,.35)' }}>
+          <span aria-hidden="true">🚫</span>
+          <span><b>{t('ui.match.missingB')}</b> {blockedXI.map((p, i) => (
+            <React.Fragment key={p.id}>{i > 0 ? ', ' : ' '}<b>{p.name}</b> ({stOf(p.id).kind === 'suspended' ? t('ui.match.suspended') : t('ui.match.injured', { n: stOf(p.id).n })})</React.Fragment>
+          ))}{t('ui.match.missingTail')}</span>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="stage screen-fade">
+      <div className="prematch-warnings">{warningsBlocks}</div>
       <div className="shead">
         <div>
           <span className="tok">{window.roundText(round, 'short').toLowerCase()}</span>
@@ -103,45 +140,11 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
         </div>
 
         <div>
-          {diff < 0 ? (
-            <div className="warn" style={{ marginBottom: 14 }}>
-              <span aria-hidden="true">⚠️</span>
-              <span><b>{t('ui.match.underdogB')}</b> {t('ui.match.underdog', { opp: opponentAvg, you: playerAvg })}
-                {tiredCount > 0 && t('ui.match.tiredHint')}</span>
-            </div>
-          ) : (
-            <div className="warn" style={{ marginBottom: 14, background: 'rgba(0,168,89,.08)', borderColor: 'rgba(0,168,89,.25)' }}>
-              <span aria-hidden="true">✅</span>
-              <span><b>{t('ui.match.favB')}</b> {t('ui.match.fav', { you: playerAvg, opp: opponentAvg })}
-                {tiredCount > 0 && t('ui.match.favTired')}</span>
-            </div>
-          )}
-
-          {youngUnder.length > 0 && (
-            <div className="warn" style={{ marginBottom: 14, background: 'rgba(79,134,255,.08)', borderColor: 'rgba(79,134,255,.28)' }}>
-              <span aria-hidden="true">🎓</span>
-              <span><b>{t('ui.match.youthB')}</b> {pressuredCount > 0
-                ? <>{t('ui.match.youthOn', { pen: round.n * C.PRESSURE_PER_ROUND })}{hasLeader ? t('ui.match.youthLeader') : t('ui.match.youthNoLeader')}</>
-                : t('ui.match.youthNone')}</span>
-            </div>
-          )}
-
-          {!canStart && (
-            <div className="warn" style={{ marginBottom: 14, background: 'rgba(229,72,77,.1)', borderColor: 'rgba(229,72,77,.35)' }}>
-              <span aria-hidden="true">🚫</span>
-              <span><b>{t('ui.match.missingB')}</b> {blockedXI.map((p, i) => (
-                <React.Fragment key={p.id}>{i > 0 ? ', ' : ' '}<b>{p.name}</b> ({stOf(p.id).kind === 'suspended' ? t('ui.match.suspended') : t('ui.match.injured', { n: stOf(p.id).n })})</React.Fragment>
-              ))}{t('ui.match.missingTail')}</span>
-            </div>
-          )}
-
           {/* SUBSTITUTIONS / rotation */}
           <div className="squadbox">
             <div className="hd">
               <h3>{t('ui.match.subs')}</h3>
-              <span className={`cnt ${subsUsed > 0 ? 'full' : ''}`} style={subsUsed === 0 ? { color: 'var(--fg3)' } : {}}>
-                {t('ui.match.subsUsed', { used: subsUsed, max: C.SUBS_MAX })}
-              </span>
+              <span className="cnt" style={{ color: 'var(--fg3)' }}>{t('ui.match.subsFree')}</span>
             </div>
             {sel != null && (
               <div className="sub-hint">
@@ -165,9 +168,10 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                       {p.leader && <span className="lead-tag">{t('ui.common.leader')}</span>}
                       {p.age < C.PRESSURE_U_AGE && <span className="young-tag" title={t('ui.common.age', { n: p.age })}>{t('ui.match.young')}</span>}
                       {pr > 0 && <span className="press-tag" title={t('ui.match.pressTitle')}>{t('ui.match.pressTag', { n: pr })}</span>}
+                      {boostOf(p) > 0 && p.id !== starId && <span className="chem-tag" title={t('ui.match.chemTitle', { team: p.team, cup: p.cup })}>{t('ui.match.chemTag')}</span>}
                     </span>
                     <StaminaBar fatigue={f} />
-                    <span className="ov">{effOvr(p)}{(f + pr) > 0 && <span className="ov-pen"> −{f + pr}</span>}</span>
+                    <span className="ov">{effOvr(p)}{(fatPen(p) + pr) > 0 && <span className="ov-pen"> −{fatPen(p) + pr}</span>}{boostOf(p) > 0 && <span className="ov-boost"> +{boostOf(p)}</span>}</span>
                   </div>
                 );
               })}

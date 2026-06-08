@@ -81,14 +81,20 @@ function HowToPlay({ onClose }) {
 
         <div className="howto-sec">
           <h3><span className="ic">🔋</span> {t('ui.howto.s5h')}</h3>
-          <p>{rich('ui.howto.s5p1', { oldAge: C.FATIGUE_OLD_AGE, old: C.FATIGUE_OLD, young: C.FATIGUE_YOUNG, rest: C.FATIGUE_REST_RECOVERY, max: C.FATIGUE_MAX })}</p>
-          <p>{rich('ui.howto.s5p2', { stamina: C.STAMINA_PER_PT, subs: C.SUBS_MAX })}</p>
+          <p>{rich('ui.howto.s5p1', { oldAge: C.FATIGUE_OLD_AGE, old: C.FATIGUE_OLD, young: C.FATIGUE_YOUNG, max: C.FATIGUE_MAX })}</p>
+          <p>{rich('ui.howto.s5p2', { stamina: C.STAMINA_PER_PT, penMax: C.FATIGUE_PENALTY_MAX, subs: C.SUBS_MAX })}</p>
         </div>
 
         <div className="howto-sec">
           <h3><span className="ic">🎓</span> {t('ui.howto.s6h')}</h3>
           <p>{rich('ui.howto.s6p1', { uAge: C.PRESSURE_U_AGE, perRound: C.PRESSURE_PER_ROUND })}</p>
           {C.LEADER_HALVES_PRESSURE && <p>{t('ui.howto.s6p2')}</p>}
+        </div>
+
+        <div className="howto-sec">
+          <h3><span className="ic">🧑‍✈️</span> {t('ui.howto.capH')}</h3>
+          <p>{rich('ui.howto.capP1', { cap: C.CAPTAIN_OVR_BOOST })}</p>
+          <p>{rich('ui.howto.capP2', { chem: C.CHEMISTRY_OVR_BOOST })}</p>
         </div>
 
         <div className="howto-sec">
