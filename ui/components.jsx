@@ -66,6 +66,42 @@ function AttrBars({ attrs, masked = false }) {
   );
 }
 
+/* language picker — DS "compact" variant: a pill (flag + full name + chevron)
+   that opens a dropdown of the supported languages. Closes on outside click / Esc. */
+function LangPicker({ lang, langs, onSet, label }) {
+  const t = (k) => window.I18N.t(k);
+  const FLAG = { pt: 'br', en: 'us', es: 'es' };
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return (
+    <div className={`lang-wrap ${open ? 'open' : ''}`} ref={ref}>
+      <button type="button" className="lang-pill" aria-haspopup="listbox" aria-expanded={open}
+        aria-label={label} onClick={() => setOpen(o => !o)}>
+        <Flag code={FLAG[lang]} />
+        <span className="lang-pill-label">{t('lang.' + lang + 'Full')}</span>
+        <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+          aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <div className="lang-menu" role="listbox" aria-label={label}>
+        {langs.map(code => (
+          <button key={code} type="button" role="option" aria-selected={lang === code}
+            className={lang === code ? 'on' : ''} onClick={() => { onSet(code); setOpen(false); }}>
+            <Flag code={FLAG[code]} />{t('lang.' + code + 'Full')}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* compact game header with breadcrumb trail, theme toggle + language picker */
 function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onToggleTheme, lang, onSetLang, onReset, onHowTo }) {
   const t = (k, v) => window.I18N.t(k, v);
@@ -102,12 +138,7 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onTogg
         </div>
         <div className="ghdr-controls">
           {onSetLang && C.LANGS && (
-            <div className="lang-seg" role="group" aria-label={t('header.lang')}>
-              {C.LANGS.map(code => (
-                <button key={code} className={lang === code ? 'on' : ''} aria-pressed={lang === code}
-                  title={t('lang.' + code + 'Full')} onClick={() => onSetLang(code)}>{t('lang.' + code)}</button>
-              ))}
-            </div>
+            <LangPicker lang={lang} langs={C.LANGS} onSet={onSetLang} label={t('header.lang')} />
           )}
           {onToggleTheme && (
             <button className="btn-icon" onClick={onToggleTheme} aria-label={themeAria} title={themeAria}>
