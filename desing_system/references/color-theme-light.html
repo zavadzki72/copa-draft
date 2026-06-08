@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Colors" name="Light theme" subtitle="[data-theme=&quot;light&quot;] — surfaces, text & accents on white" viewport="700x500" --><html lang="en" data-theme="light"><head><meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  body{gap:18px}
+  .lt-cap{font-family:var(--font-mono);font-size:11px;color:var(--green-bright)}
+  .ramp{display:flex;gap:0;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--hairline)}
+  .ramp .cell{flex:1;height:54px;display:flex;align-items:flex-end;padding:6px 8px;font-family:var(--font-mono);font-size:9px}
+  .surf-grid{display:flex;gap:10px}
+  .surf{flex:1;border-radius:var(--r-md);border:1px solid var(--hairline);padding:12px;display:flex;flex-direction:column;gap:4px}
+  .surf .nm{font-size:12px;color:var(--fg1);font-weight:600}
+  .surf .hx{font-family:var(--font-mono);font-size:10px;color:var(--fg3)}
+
+  .demo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px;border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--hairline);box-shadow:var(--shadow-card)}
+  .btn{font-family:var(--font-sans);font-weight:600;font-size:13px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .pg{background:var(--green);color:var(--on-green);border-radius:var(--r-pill);padding:10px 20px}
+  .py{background:var(--yellow);color:var(--on-yellow);border-radius:var(--r-pill);padding:10px 20px;font-weight:700}
+  .gh{background:transparent;color:var(--green-bright);border:1px solid rgba(0,142,75,.45)!important;border-radius:var(--r-pill);padding:9px 18px}
+  .bdg{padding:5px 11px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(0,142,75,.12);color:var(--green-bright);border:1px solid rgba(0,142,75,.3)}
+  .field{flex:1;min-width:160px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:var(--r-md);padding:10px 12px;color:var(--fg1);font-family:var(--font-sans);font-size:13px;outline:none}
+  .field::placeholder{color:var(--fg3)}
+  .tokrow{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .tok{font-family:var(--font-mono);color:var(--green-bright);font-weight:500;font-size:13px}
+  .tok::before{content:':';opacity:.6}
+  .note{font-size:11px;color:var(--fg3)}
+</style></head>
+<body>
+<div class="lbl" style="color:var(--fg3)">Light theme — data-theme="light"</div>
+
+<div class="lt-cap">surfaces</div>
+<div class="surf-grid">
+  <div class="surf" style="background:var(--bg)"><span class="nm">bg</span><span class="hx">#F4F7F4</span></div>
+  <div class="surf" style="background:var(--surface-1)"><span class="nm">surface-1</span><span class="hx">#FFFFFF</span></div>
+  <div class="surf" style="background:var(--surface-2)"><span class="nm">surface-2</span><span class="hx">#ECF1EC</span></div>
+  <div class="surf" style="background:var(--surface-3)"><span class="nm">surface-3</span><span class="hx">#DEE7DE</span></div>
+</div>
+
+<div class="lt-cap">accents · text on white uses deep green (yellow stays a fill only)</div>
+<div class="ramp">
+  <div class="cell" style="background:var(--green);color:#fff">green</div>
+  <div class="cell" style="background:var(--green-bright);color:#fff">accent-text</div>
+  <div class="cell" style="background:var(--yellow);color:var(--on-yellow)">yellow</div>
+  <div class="cell" style="background:var(--blue);color:#fff">blue</div>
+  <div class="cell" style="background:var(--fg1);color:#fff">fg1</div>
+  <div class="cell" style="background:var(--fg2);color:#fff">fg2</div>
+</div>
+
+<div class="lt-cap">components on light</div>
+<div class="demo">
+  <button class="btn pg">Ver jogos</button>
+  <button class="btn py">Ingressos</button>
+  <button class="btn gh">Ver mais →</button>
+  <span class="bdg">Grupo G</span>
+</div>
+<div class="demo">
+  <input class="field" placeholder="Buscar seleção…">
+  <span class="tok">tabela</span>
+  <span class="tok">craques</span>
+</div>
+<div class="note">Same Brazil DNA, re-tuned for white: green buttons take white text, accent text shifts to deep green for AA contrast, shadows soften.</div>
+</body></html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Inputs" subtitle="Text field + segmented toggle" viewport="700x190" --><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .field{width:100%;background:var(--surface-2);border:1px solid var(--hairline);border-radius:8px;padding:12px 14px;color:var(--fg1);font-family:var(--font-sans);font-size:14px;outline:none;transition:all .25s var(--ease-smooth)}
+  .field::placeholder{color:var(--fg3)}
+  .field:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,168,89,.18)}
+  .sel{display:flex;background:var(--surface-2);border:1px solid var(--hairline);border-radius:50px;padding:4px;gap:4px;width:fit-content}
+  .seg{padding:8px 18px;border-radius:50px;font-size:13px;font-weight:500;color:var(--fg2);cursor:pointer}
+  .seg.on{background:var(--green);color:var(--on-green)}
+</style></head>
+<body>
+<div class="lbl">Inputs &amp; segmented toggle</div>
+<input class="field" placeholder="Buscar seleção ou jogador…">
+<input class="field" value="Brasil × Argentina" style="border-color:var(--green);box-shadow:0 0 0 3px rgba(0,168,89,.18)">
+<div class="sel"><span class="seg on">Fase de grupos</span><span class="seg">Mata-mata</span></div>
+</body></html>

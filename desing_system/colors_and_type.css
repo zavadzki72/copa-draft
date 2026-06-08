@@ -17,7 +17,6 @@
   --green-deep:   #047A41;  /* pressed / deep fills */
   --yellow:       #FFDF00;  /* secondary accent — highlights, key CTAs (use sparingly) */
   --yellow-deep:  #E5C500;  /* yellow hover / borders */
-  --yellow-ink:   #FFDF00;  /* yellow used as TEXT — re-tuned to gold on light (DS: no yellow text on white) */
   --blue:         #2563EB;  /* support — links / info (brightened flag blue) */
   --blue-bright:  #4F86FF;  /* blue hover on dark */
 
@@ -27,7 +26,6 @@
   --surface-2: #1E261F;  /* raised surfaces, hover rows, inputs */
   --surface-3: #283328;  /* borders-as-fill, active chips */
   --hairline:  #2A352B;  /* 1px borders / dividers */
-  --header-bg: rgba(13,18,14,.82);  /* sticky header backdrop (semi-transparent) */
 
   /* ---------- TEXT ---------- */
   --fg1: #FFFFFF;  /* primary text */
@@ -55,13 +53,13 @@
   --fs-sm:      0.9rem;   /* 14px */
   --fs-xs:      0.7rem;   /* 11px — badges, eyebrow caps */
 
-  --fw-regular: 400;
-  --fw-medium:  500;   /* most headings in source are 500 */
-  --fw-semibold:600;
-  --fw-bold:    700;
+  --fw-regular: 400;   /* @kind font */
+  --fw-medium:  500;   /* @kind font */
+  --fw-semibold:600;   /* @kind font */
+  --fw-bold:    700;   /* @kind font */
 
-  --lh-tight: 1.15;
-  --lh-body:  1.6;
+  --lh-tight: 1.15;    /* @kind font */
+  --lh-body:  1.6;     /* @kind font */
 
   /* ---------- RADII ---------- */
   --r-sm:   4px;    /* chips, language switcher, skill tiles */
@@ -85,62 +83,11 @@
   --glow-yellow: 0 4px 15px rgba(255,223,0,0.25);
 
   /* ---------- EASING (the signature elastic micro-anims) ---------- */
-  --ease-pop:     cubic-bezier(0.25, 1.15, 0.35, 1.15);  /* tooltip / scale-in pop */
-  --ease-smooth:  cubic-bezier(0, 0.99, 0.44, 0.99);     /* soft settle */
-  --ease-line:    cubic-bezier(0.86, 0, 0.07, 1);        /* nav underline sweep */
+  --ease-pop:     cubic-bezier(0.25, 1.15, 0.35, 1.15);  /* @kind other */  /* tooltip / scale-in pop */
+  --ease-smooth:  cubic-bezier(0, 0.99, 0.44, 0.99);     /* @kind other */  /* soft settle */
+  --ease-line:    cubic-bezier(0.86, 0, 0.07, 1);        /* @kind other */  /* nav underline sweep */
   /* --ease-elastic-3 / --ease-elastic-4 come from Open Props above */
 }
-
-/* ============================================================
-   LIGHT THEME  —  set [data-theme="light"] on <html>, <body>, or
-   any wrapper. Variables inherit, so every descendant that reads
-   the tokens re-themes automatically. Same Brazil hues, re-tuned
-   for white surfaces (DS source of truth).
-
-   Rule kept from the system: yellow is a FILL only on light —
-   never yellow *text* on white. Accent text uses deep green and
-   green fills take WHITE text. Dark remains the default in :root.
-   ============================================================ */
-[data-theme="light"] {
-  /* ---------- BRAND PALETTE (re-tuned for white) ---------- */
-  --green:        #008E4B;  /* primary fill — readable with white text on light */
-  --green-bright: #047A41;  /* accent TEXT / links / active / hover-darken on light */
-  --green-deep:   #035C31;  /* pressed / deep fills */
-  --yellow:       #FFD400;  /* key-CTA fill (near-black text) — fills only on light */
-  --yellow-deep:  #C99A00;  /* yellow detail / borders that must read on white */
-  --yellow-ink:   #B5870C;  /* yellow-as-text → dark gold, readable on white */
-  --blue:         #1D4ED8;  /* support link/info, AA on white */
-  --blue-bright:  #2563EB;  /* blue hover on light */
-
-  /* ---------- SURFACES (warm near-white, green tint) ---------- */
-  --bg:        #F4F7F4;  /* page background */
-  --surface-1: #FFFFFF;  /* cards, panels */
-  --surface-2: #ECF1EC;  /* raised surfaces, hover rows, inputs */
-  --surface-3: #DEE7DE;  /* borders-as-fill, active chips, tracks */
-  --hairline:  #D8E2D8;  /* 1px borders / dividers */
-  --header-bg: rgba(244,247,244,.85);  /* app token (DS omits) — light header backdrop */
-
-  /* ---------- TEXT ---------- */
-  --fg1: #0D120E;  /* primary text */
-  --fg2: #4F5D54;  /* secondary / muted text */
-  --fg3: #7C8A80;  /* tertiary / captions / placeholders */
-  --on-yellow: #0D120E;  /* near-black text on yellow fills */
-  --on-green:  #FFFFFF;  /* white text on solid green fills (light theme) */
-
-  /* ---------- STATUS (re-tuned for white) ---------- */
-  --win:  #0F9B53;
-  --draw: #B5870C;   /* darkened gold — yellow is unreadable as text on white */
-  --loss: #D92D32;
-
-  /* ---------- SHADOWS / GLOW (softened for light) ---------- */
-  --shadow-card: 0 4px 14px rgba(13,18,14,0.08);
-  --shadow-lift: 0 18px 38px rgba(0,140,70,0.16), 0 0 50px rgba(0,140,70,0.05);
-  --glow-green:  0 4px 14px rgba(0,142,75,0.28);
-  --glow-yellow: 0 4px 14px rgba(255,212,0,0.40);
-}
-
-/* Re-tinted text selection on light */
-[data-theme="light"] ::selection { background: var(--green); color: #FFFFFF; }
 
 /* ============================================================
    SEMANTIC BASE
@@ -172,3 +119,51 @@
 .token::before { content: ':'; opacity: 0.7; }
 
 ::selection { background: var(--green); color: var(--fg1); }
+
+/* ============================================================
+   LIGHT THEME  —  set [data-theme="light"] on <html>, <body>,
+   or any wrapper. Variables inherit, so every descendant that
+   reads the tokens re-themes automatically. Same Brazil hues,
+   re-tuned for white surfaces.
+
+   Rule kept from the system: yellow is a FILL only on light —
+   never yellow *text* on white. Accent text uses deep green.
+   ============================================================ */
+[data-theme="light"] {
+  /* ---------- BRAND PALETTE (re-tuned for white) ---------- */
+  --green:        #008E4B;  /* primary fill — readable with white text on light */
+  --green-bright: #047A41;  /* accent TEXT / links / active / hover-darken on light */
+  --green-deep:   #035C31;  /* pressed / deep fills */
+  --yellow:       #FFD400;  /* key-CTA fill (near-black text) — fills only on light */
+  --yellow-deep:  #C99A00;  /* yellow detail / borders that must read on white */
+  --blue:         #1D4ED8;  /* support link/info, AA on white */
+  --blue-bright:  #2563EB;  /* blue hover on light */
+
+  /* ---------- SURFACES (warm near-white, green tint) ---------- */
+  --bg:        #F4F7F4;  /* page background */
+  --surface-1: #FFFFFF;  /* cards, panels */
+  --surface-2: #ECF1EC;  /* raised surfaces, hover rows, inputs */
+  --surface-3: #DEE7DE;  /* borders-as-fill, active chips */
+  --hairline:  #D8E2D8;  /* 1px borders / dividers */
+
+  /* ---------- TEXT ---------- */
+  --fg1: #0D120E;  /* primary text */
+  --fg2: #4F5D54;  /* secondary / muted text */
+  --fg3: #7C8A80;  /* tertiary / captions / placeholders */
+  --on-yellow: #0D120E;  /* near-black text on yellow fills */
+  --on-green:  #FFFFFF;  /* white text on solid green fills (light theme) */
+
+  /* ---------- STATUS (re-tuned for white) ---------- */
+  --win:  #0F9B53;
+  --draw: #B5870C;   /* darkened gold — yellow is unreadable as text on white */
+  --loss: #D92D32;
+
+  /* ---------- SHADOWS / GLOW (softened for light) ---------- */
+  --shadow-card: 0 4px 14px rgba(13,18,14,0.08);
+  --shadow-lift: 0 18px 38px rgba(0,140,70,0.16), 0 0 50px rgba(0,140,70,0.05);
+  --glow-green:  0 4px 14px rgba(0,142,75,0.28);
+  --glow-yellow: 0 4px 14px rgba(255,212,0,0.40);
+}
+
+/* Re-tinted text selection on light */
+[data-theme="light"] ::selection { background: var(--green); color: #FFFFFF; }

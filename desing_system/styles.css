@@ -1,0 +1,12 @@
+/* ============================================================
+   MARCCU'S COPA — root stylesheet
+   Single entry point for consumers. Link THIS file and you get
+   the full token layer (Brazil palette, surfaces, type scale,
+   radii, spacing, shadows, elastic easings), the Archivo font
+   import, the complete light theme ([data-theme="light"]), and
+   the semantic base (.copa-scope, .token, .eyebrow).
+
+   Component / UI-kit CSS (preview/_card.css, ui_kits/copa/kit.css)
+   pull this in on their own — no need to link them globally.
+   ============================================================ */
+@import url('colors_and_type.css');

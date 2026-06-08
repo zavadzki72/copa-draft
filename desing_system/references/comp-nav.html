@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Header nav" subtitle="Code-token nav bar" viewport="700x160" --><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .nav{display:flex;align-items:center;gap:30px;background:var(--bg);padding:16px 22px;border:1px solid var(--hairline);border-radius:14px}
+  .wm{font-family:var(--font-mono);font-weight:700;font-size:20px;color:var(--fg1);letter-spacing:.01em}
+  .wm b{color:var(--green-bright);font-weight:700;margin:0 4px}
+  .nav a{font-family:var(--font-mono);color:var(--fg2);font-size:15px;position:relative;text-decoration:none}
+  .nav a.on{color:var(--fg1)}
+  .nav a.on::after{content:'';position:absolute;left:0;bottom:-6px;width:100%;height:2px;background:linear-gradient(270deg,var(--green-bright),transparent)}
+</style></head>
+<body>
+<div class="lbl">Header — code-token nav</div>
+<nav class="nav">
+  <span class="wm"><b>{</b>copa<b>}</b></span>
+  <a class="on">jogos</a>
+  <a>tabela</a>
+  <a>grupos</a>
+  <a>craques</a>
+</nav>
+<div class="sub">Fixed translucent header, <span class="mono">{ copa }</span> code-bracket wordmark, monospace nav links, gradient underline sweeps in on hover (ease-line).</div>
+</body></html>

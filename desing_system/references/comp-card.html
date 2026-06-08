@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Card" subtitle="Gradient top-rail card with icon + badge" viewport="700x250" --><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .card{position:relative;padding:22px;background:linear-gradient(145deg,rgba(21,27,22,.9),rgba(30,38,31,.6));border-radius:16px;border:1px solid rgba(0,168,89,.18);overflow:hidden;width:300px}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),var(--green-bright),var(--green))}
+  .ci{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,rgba(0,168,89,.25),rgba(0,168,89,.06));display:flex;align-items:center;justify-content:center;color:var(--green-bright);font-size:22px}
+  .card h3{font-size:19px;font-weight:600;margin:14px 0 6px}
+  .card p{font-size:13px;color:var(--fg2);line-height:1.6}
+  .ca{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:9px 16px;background:linear-gradient(135deg,rgba(0,168,89,.15),rgba(0,168,89,.05));border-radius:8px;color:var(--green-bright);font-size:13px;font-weight:500}
+</style></head>
+<body>
+<div class="lbl">Card — gradient top-rail, icon, badge</div>
+<article class="card">
+  <div class="row" style="justify-content:space-between"><div class="ci">★</div><span style="padding:5px 11px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(0,168,89,.15);color:var(--green-bright);border:1px solid rgba(0,168,89,.3)">Craque</span></div>
+  <h3>Seleção Canarinho</h3>
+  <p>Acompanhe escalações, artilheiros e o caminho rumo ao hexa.</p>
+  <span class="ca">Ver elenco →</span>
+</article>
+</body></html>

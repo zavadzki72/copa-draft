@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Language toggle" subtitle="PT / EN switcher — flag + sigla, 3 variants" viewport="700x340" --><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+<style>
+  .lt-grid{display:flex;flex-direction:column;gap:18px}
+  .lt-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .lt-tag{font-family:var(--font-mono);font-size:11px;color:var(--fg3);width:88px;flex:none}
+
+  /* ---- A. segmented (primary) ---- */
+  .lang-seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:4px;gap:4px}
+  .lang-seg button{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:none;background:transparent;border-radius:6px;color:var(--fg2);font-family:var(--font-sans);font-weight:600;font-size:13px;cursor:pointer;transition:all .35s var(--ease-pop)}
+  .lang-seg button .fi{width:20px!important;height:14px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.14)}
+  .lang-seg button:hover{color:var(--fg1)}
+  .lang-seg button.on{background:var(--green);color:var(--on-green);box-shadow:var(--glow-green)}
+  .lang-seg button.on:hover{color:var(--on-green)}
+
+  /* ---- B. compact pill + dropdown ---- */
+  .lang-wrap{position:relative}
+  .lang-pill{display:inline-flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:8px 12px;color:var(--fg1);font-family:var(--font-sans);font-weight:600;font-size:13px;cursor:pointer;transition:border-color .25s var(--ease-smooth)}
+  .lang-pill:hover{border-color:rgba(0,168,89,.45)}
+  .lang-pill .fi{width:22px!important;height:15px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.14)}
+  .lang-pill .chev{width:14px;height:14px;color:var(--fg3);transition:transform .3s var(--ease-pop)}
+  .lang-wrap.open .chev{transform:rotate(180deg)}
+  .lang-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--r-md);padding:5px;box-shadow:var(--shadow-card);opacity:0;transform:translateY(-6px) scale(.97);transform-origin:top;pointer-events:none;transition:all .3s var(--ease-pop);z-index:5}
+  .lang-wrap.open .lang-menu{opacity:1;transform:none;pointer-events:auto}
+  .lang-menu button{display:flex;align-items:center;gap:9px;width:100%;border:none;background:transparent;padding:8px 12px;border-radius:6px;color:var(--fg2);font-family:var(--font-sans);font-weight:500;font-size:13px;cursor:pointer;white-space:nowrap;transition:all .2s}
+  .lang-menu button .fi{width:20px!important;height:14px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.14)}
+  .lang-menu button:hover{background:var(--surface-2);color:var(--fg1)}
+  .lang-menu button.on{color:var(--green-bright)}
+  .lang-menu button.on::after{content:'✓';margin-left:auto;color:var(--green-bright);font-size:12px}
+
+  /* ---- C. flag-only circles ---- */
+  .lang-flags{display:inline-flex;gap:10px}
+  .lang-flags button{width:36px;height:36px;border-radius:50%;border:none;padding:0;overflow:hidden;position:relative;cursor:pointer;filter:grayscale(.7);opacity:.55;transition:all .35s var(--ease-pop)}
+  .lang-flags button .fi{position:absolute;inset:0;width:100%!important;height:100%!important;border-radius:50%;background-size:cover!important;background-position:center!important}
+  .lang-flags button:hover{opacity:.85;filter:grayscale(.2)}
+  .lang-flags button.on{opacity:1;filter:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--green)}
+
+  /* ---- live demo string ---- */
+  .lt-demo{margin-top:4px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--fg2)}
+  .lt-demo .k{font-family:var(--font-mono);font-size:11px;color:var(--green-bright)}
+  .lt-demo .v{font-weight:600;color:var(--fg1)}
+</style></head>
+<body>
+<div class="lbl">Language toggle — PT / EN</div>
+<div class="lt-grid">
+
+  <div class="lt-row">
+    <span class="lt-tag">segmented</span>
+    <div class="lang-seg" data-langset>
+      <button data-lang="pt" class="on"><span class="fi fi-br"></span>PT</button>
+      <button data-lang="en"><span class="fi fi-us"></span>EN</button>
+    </div>
+  </div>
+
+  <div class="lt-row">
+    <span class="lt-tag">compact</span>
+    <div class="lang-wrap" data-dropdown>
+      <button class="lang-pill" data-trigger>
+        <span class="fi fi-br"></span><span data-pill-label>Português</span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="lang-menu" data-langset>
+        <button data-lang="pt" class="on"><span class="fi fi-br"></span>Português</button>
+        <button data-lang="en"><span class="fi fi-us"></span>English</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="lt-row">
+    <span class="lt-tag">flag-only</span>
+    <div class="lang-flags" data-langset>
+      <button data-lang="pt" class="on" aria-label="Português"><span class="fi fi-br"></span></button>
+      <button data-lang="en" aria-label="English"><span class="fi fi-us"></span></button>
+    </div>
+  </div>
+
+  <div class="lt-demo">
+    <span class="k">:proximo-jogo</span>
+    <span class="v" data-demo>Brasil × Argentina · Próximo jogo</span>
+  </div>
+</div>
+
+<script>
+  const COPY = {
+    pt: { demo: 'Brasil × Argentina · Próximo jogo', pill: 'Português' },
+    en: { demo: 'Brazil × Argentina · Next match',  pill: 'Portuguese' }
+  };
+  // pill flag + label maps
+  const PILL = {
+    pt: { flag: 'fi-br', label: 'Português' },
+    en: { flag: 'fi-us', label: 'English' }
+  };
+  let lang = 'pt';
+
+  function render() {
+    document.querySelectorAll('[data-langset] button').forEach(b => {
+      b.classList.toggle('on', b.dataset.lang === lang);
+    });
+    const pillFlag = document.querySelector('[data-trigger] .fi');
+    const pillLabel = document.querySelector('[data-pill-label]');
+    if (pillFlag) pillFlag.className = 'fi ' + PILL[lang].flag;
+    if (pillLabel) pillLabel.textContent = lang === 'pt' ? 'Português' : 'English';
+    document.querySelectorAll('[data-demo]').forEach(d => d.textContent = COPY[lang].demo);
+  }
+
+  document.querySelectorAll('[data-langset]').forEach(set => {
+    set.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-lang]');
+      if (!btn) return;
+      lang = btn.dataset.lang;
+      const wrap = btn.closest('[data-dropdown]');
+      if (wrap) wrap.classList.remove('open');
+      render();
+    });
+  });
+
+  // dropdown open/close
+  const wrap = document.querySelector('[data-dropdown]');
+  document.querySelector('[data-trigger]').addEventListener('click', e => {
+    e.stopPropagation();
+    wrap.classList.toggle('open');
+  });
+  document.addEventListener('click', () => wrap.classList.remove('open'));
+</script>
+</body></html>
