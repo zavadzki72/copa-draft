@@ -215,36 +215,90 @@ function PlayerTile({ p, picked, isStar, disabled, mode, onClick }) {
   );
 }
 
-/* football pitch with positioned tokens */
+/* top-down pitch markings — grass stripes + lines (DS PitchLineup, vertical) */
+function PitchMarkings() {
+  const stroke = { fill: 'none', stroke: 'rgba(255,255,255,0.22)', strokeWidth: 0.8 };
+  const spot = { fill: 'rgba(255,255,255,0.22)' };
+  const goal = { fill: 'rgba(255,255,255,0.10)', stroke: 'rgba(255,255,255,0.28)', strokeWidth: 0.6 };
+  const stripes = [];
+  for (let i = 0; i < 6; i++) stripes.push(<rect key={i} x="0" y={i * 25} width="100" height="25" fill={i % 2 ? '#0F2A1B' : '#0C2316'} />);
+  return (
+    <svg viewBox="0 0 100 150" preserveAspectRatio="none" className="pl-svg" aria-hidden="true">
+      {stripes}
+      <g {...stroke}>
+        <rect x="3" y="3" width="94" height="144" />
+        <line x1="3" y1="75" x2="97" y2="75" />
+        <circle cx="50" cy="75" r="9" />
+        <rect x="21" y="117" width="58" height="30" />
+        <rect x="36" y="137" width="28" height="10" />
+        <path d="M38,117 A 9 9 0 0 1 62,117" />
+        <rect x="21" y="3" width="58" height="30" />
+        <rect x="36" y="3" width="28" height="10" />
+        <path d="M38,33 A 9 9 0 0 0 62,33" />
+      </g>
+      <circle cx="50" cy="75" r="0.9" {...spot} />
+      <circle cx="50" cy="129" r="0.9" {...spot} />
+      <circle cx="50" cy="21" r="0.9" {...spot} />
+      <rect x="42" y="146.4" width="16" height="3" {...goal} />
+      <rect x="42" y="0.6" width="16" height="3" {...goal} />
+    </svg>
+  );
+}
+
+/* football pitch — top-down lineup board. Ports the DS PitchLineup visual
+   (gradient badges, yellow GK, hover labels) but derives x/y from the app's
+   formationRows so it works for every formation. Badge = overall ('?' when
+   masked in almanaque); captain gets a star; flag + position in the label. */
 function Pitch({ starters, formation, starId, hideOvr }) {
   const rows = window.TEAM.formationRows(formation);
   const g = { GOL: [], ZAG: [], LAT: [], MEI: [], ATA: [] };
   starters.forEach(p => g[p.pos] && g[p.pos].push(p));
   const cursor = { GOL: 0, ZAG: 0, LAT: 0, MEI: 0, ATA: 0 };
+
+  // map each row to a vertical band (GK at own goal → attackers near the top)
+  // and spread players across the width; x raw, y kept off the touchlines.
+  const nRows = rows.length;
+  const yForRow = (ri) => ri === 0 ? 90 : 72 - ((ri - 1) / Math.max(1, nRows - 2)) * 52;
+  const xForCol = (ci, count) => {
+    if (count <= 1) return 50;
+    const margin = count >= 5 ? 12 : count >= 4 ? 15 : 22;
+    return margin + ci * (100 - 2 * margin) / (count - 1);
+  };
+  const insetY = (v) => 4 + v * 0.92;
+
+  const marks = [];
+  rows.forEach((row, ri) => {
+    const y = yForRow(ri);
+    row.forEach((pos, ci) => {
+      const p = g[pos][cursor[pos]++];
+      if (p) marks.push({ p, x: xForCol(ci, row.length), y });
+    });
+  });
+
   return (
-    <div className="pitch" role="img" aria-label={window.I18N.t('ui.common.lineupAria')}>
-      <div className="mid"></div>
-      <div className="circle"></div>
-      <div className="box top"></div>
-      <div className="box bot"></div>
-      <div className="pitch-rows">
-        {rows.map((row, ri) => (
-          <div className="prow" key={ri}>
-            {row.map((pos, ci) => {
-              const p = g[pos][cursor[pos]++];
-              if (!p) return <div className="token" key={ci}></div>;
-              const isStar = p.id === starId;
-              return (
-                <div className={`token ${isStar ? 'star' : ''}`} key={ci}>
-                  <span className="disc">{hideOvr ? '?' : p.overall}</span>
-                  <span className="nm">{p.name.split(' ').slice(-1)[0]}</span>
-                  <span className="pp">{p.code && <Flag code={p.code} className="tok-flag" />}{p.pos}</span>
-                </div>
-              );
-            })}
+    <div className="pl-pitch" role="img" aria-label={window.I18N.t('ui.common.lineupAria')}>
+      <PitchMarkings />
+      {marks.map(({ p, x, y }, i) => {
+        const isStar = p.id === starId;
+        const isGk = p.pos === 'GOL';
+        const up = y >= 80; // deep markers flip their label above the touchline
+        return (
+          <div key={p.id || i} className={`pl-mark ${up ? 'up' : ''}`}
+            style={{ left: x + '%', top: insetY(y) + '%' }}>
+            <div className={`pl-badge ${isGk ? 'gk' : ''} ${isStar ? 'cap' : ''}`}>
+              {isStar && <span className="pl-cap" aria-hidden="true">★</span>}
+              {hideOvr ? '?' : p.overall}
+            </div>
+            <div className="pl-label">
+              <span className="pl-name">{p.name.split(' ').slice(-1)[0]}</span>
+              <span className="pl-meta">
+                {p.code && <Flag code={p.code} className="pl-flag" />}
+                <span className="pl-pos">{p.pos}</span>
+              </span>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
