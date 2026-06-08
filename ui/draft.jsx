@@ -3,7 +3,7 @@
    DICE DRAFT.
    • Pick ANY open slot to draft next (start with the striker if
      you like). • Roll the die → a selection is drawn → choose one
-     of its players. • Clássico: 2 re-rolls per slot. Almanaque:
+     of its players. • Clássico: 2 re-rolls for the whole draft. Almanaque:
      none. • Once full, swap starters ↔ reserves and crown a
      captain, then confirm. Your team is a mosaic of icons.
    ============================================================ */
@@ -29,11 +29,13 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
   const allFilled = filledCount === total;
   const takenIds = new Set(fills.filter(Boolean).map(p => p.id));
 
-  // reset the roll state whenever the active slot (or mode) changes
+  // reset the roll UI for each new slot — but NOT the rerolls (those are a draft-wide budget)
   useEffect(() => {
-    setStep('roll'); setDrawn(null); setRerollsLeft(MAX_REROLL);
+    setStep('roll'); setDrawn(null);
     return () => rollTimer.current && clearInterval(rollTimer.current);
-  }, [activeSlot, mode]); // eslint-disable-line
+  }, [activeSlot]); // eslint-disable-line
+  // re-rolls are a budget for the WHOLE draft, not per slot — (re)set only when the mode changes
+  useEffect(() => { setRerollsLeft(MAX_REROLL); }, [mode]); // eslint-disable-line
 
   const sameGroup = (a, b) => a.pos === b.pos;
 
@@ -93,10 +95,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
 
   function selectSlot(i) {
     if (allFilled) return;          // in review, slot clicks do captain/swap
-    if (fills[i]) {                 // re-draft a filled slot
-      const nf = [...fills]; const removed = nf[i]; nf[i] = undefined; setFills(nf);
-      if (removed && removed.id === starId) setStarId(null);
-    }
+    if (fills[i]) return;           // a defined slot is LOCKED — clicking it no longer wipes the pick
     setActiveSlot(i);
   }
 
@@ -171,7 +170,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
               const active = !allFilled && i === activeSlot;
               const swapTarget = swapActive && p && sameGroup(p, swapActive);
               const cls = ['slot', active ? 'active' : '', allFilled && p ? 'pick-cap' : '',
-                swapTarget ? 'swap-target' : '', !allFilled && p ? 'redraft' : ''].join(' ');
+                swapTarget ? 'swap-target' : '', !allFilled && p ? 'locked' : ''].join(' ');
               return (
                 <div className={cls} key={i}
                   onClick={() => allFilled ? onStarterClick(i) : selectSlot(i)}>
@@ -204,7 +203,8 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
               const p = fills[idx];
               const active = !allFilled && idx === activeSlot;
               const isSwapping = swapBench === idx;
-              const cls = ['slot', active ? 'active' : '', isSwapping ? 'swapping' : ''].join(' ');
+              const cls = ['slot', active ? 'active' : '', isSwapping ? 'swapping' : '',
+                !allFilled && p ? 'locked' : ''].join(' ');
               return (
                 <div className={cls} key={bi}
                   onClick={() => { if (!allFilled) selectSlot(idx); }}>

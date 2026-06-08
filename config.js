@@ -124,10 +124,10 @@ window.CONFIG = {
   OPP_STRENGTH_BIAS: 5,
 
   /* ---------- Draft draw bias ----------
-     Stronger selections (by squad average) are a touch more likely to come up
-     on the die. Small on purpose — every eligible selection stays possible.
-     0 = uniform (legacy behaviour). */
-  DRAFT_STRENGTH_BIAS: 0.05,
+     Stronger selections (by squad average) are more likely to come up on the
+     die. Higher = stronger pull toward top squads; every eligible selection
+     still stays possible (weights are floored at 0.05). 0 = uniform. */
+  DRAFT_STRENGTH_BIAS: 0.15,
 
   /* ---------- Match speed (ticker pacing only — result is unaffected) ---------- */
   MATCH_SPEEDS: {

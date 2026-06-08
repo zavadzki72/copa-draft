@@ -71,11 +71,8 @@ function FormationSelect({ options, value, onChange }) {
   );
 }
 
-function HomeScreen({ mode, setMode, formation, setFormation, speed, setSpeed, canResume, onResume, profile, onStart, onHowTo }) {
+function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo }) {
   const t = (k, v) => window.I18N.t(k, v);
-  const SP = window.CONFIG.MATCH_SPEEDS;
-  const spKey = { normal: 'spNormal', rapido: 'spRapido', super: 'spSuper' };
-  const speedOpts = Object.keys(SP).map(id => ({ id, label: t('ui.home.' + (spKey[id] || 'spNormal')) }));
   const fHint = { '4-3-3': 'fOfensivo', '4-4-2': 'fEquilibrado', '3-5-2': 'fAlas', '4-5-1': 'fCauteloso', '5-3-2': 'fDefensivo', '3-4-3': 'fOusado' };
   const formationOpts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id, hint: t('ui.home.' + (fHint[id] || 'fEquilibrado')) }));
   return (
@@ -137,12 +134,6 @@ function HomeScreen({ mode, setMode, formation, setFormation, speed, setSpeed, c
           <span className="lab">{t('ui.home.formationLabel')}</span>
           <FormationSelect value={formation} onChange={setFormation} options={formationOpts} />
         </div>
-        {speed != null && setSpeed && (
-          <div className="setcard">
-            <span className="lab">{t('ui.home.speedLabel')}</span>
-            <Segmented value={speed} onChange={setSpeed} options={speedOpts} />
-          </div>
-        )}
       </div>
     </div>
   );

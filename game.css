@@ -398,7 +398,8 @@
 .slot.pick-cap { cursor:pointer; }
 .slot.pick-cap:hover { background: rgba(255,223,0,.08); }
 .squadbox .slot { cursor: pointer; }
-.slot.redraft:hover { background: var(--surface-2); }
+.slot.locked { cursor: default; }
+.slot.locked:hover { background: transparent; }
 .slot.swap-target { background: rgba(255,223,0,.1); box-shadow: inset 3px 0 0 var(--yellow); }
 .slot.swap-target:hover { background: rgba(255,223,0,.16); }
 .slot.swapping { background: rgba(255,223,0,.12); box-shadow: inset 3px 0 0 var(--yellow); }

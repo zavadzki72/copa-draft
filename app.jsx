@@ -360,7 +360,6 @@ function App() {
 
       {phase === 'home' && (
         <HomeScreen mode={mode} setMode={setMode} formation={formation} setFormation={setFormation}
-          speed={speed} setSpeed={setSpeedPref}
           canResume={canResume} onResume={resumeRun} profile={profile0}
           onHowTo={() => setShowHowTo(true)}
           onStart={() => { window.SFX.prime(); reset(); setPhase('draft'); }} />
