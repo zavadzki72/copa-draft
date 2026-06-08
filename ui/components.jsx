@@ -258,7 +258,7 @@ function Pitch({ starters, formation, starId, hideOvr }) {
   // map each row to a vertical band (GK at own goal → attackers near the top)
   // and spread players across the width; x raw, y kept off the touchlines.
   const nRows = rows.length;
-  const yForRow = (ri) => ri === 0 ? 90 : 72 - ((ri - 1) / Math.max(1, nRows - 2)) * 52;
+  const yForRow = (ri) => ri === 0 ? 87 : 72 - ((ri - 1) / Math.max(1, nRows - 2)) * 52;
   const xForCol = (ci, count) => {
     if (count <= 1) return 50;
     const margin = count >= 5 ? 12 : count >= 4 ? 15 : 22;
@@ -281,9 +281,8 @@ function Pitch({ starters, formation, starId, hideOvr }) {
       {marks.map(({ p, x, y }, i) => {
         const isStar = p.id === starId;
         const isGk = p.pos === 'GOL';
-        const up = y >= 80; // deep markers flip their label above the touchline
         return (
-          <div key={p.id || i} className={`pl-mark ${up ? 'up' : ''}`}
+          <div key={p.id || i} className="pl-mark"
             style={{ left: x + '%', top: insetY(y) + '%' }}>
             <div className={`pl-badge ${isGk ? 'gk' : ''} ${isStar ? 'cap' : ''}`}>
               {isStar && <span className="pl-cap" aria-hidden="true">★</span>}
