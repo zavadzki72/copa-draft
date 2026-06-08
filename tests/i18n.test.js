@@ -15,11 +15,11 @@ function ok(name, cond) {
 
 // 1) team.name resolves per language
 I18N.setLang('pt');
-ok('pt team.name', I18N.t('team.name') === 'Seu Draft');
+ok('pt team.name', I18N.t('team.name') === 'Seu Time');
 I18N.setLang('en');
-ok('en team.name', I18N.t('team.name') === 'Your Draft');
+ok('en team.name', I18N.t('team.name') === 'Your Team');
 I18N.setLang('es');
-ok('es team.name', I18N.t('team.name') === 'Tu Draft');
+ok('es team.name', I18N.t('team.name') === 'Tu Equipo');
 
 // 2) interpolation works
 I18N.setLang('pt');
