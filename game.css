@@ -80,8 +80,8 @@
 .step p { font-size: .92rem; }
 
 /* settings panel */
-.setgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px; align-items: start; }
-.setcard { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); padding: 20px; }
+.setgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px; align-items: stretch; }
+.setcard { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); padding: 20px; display: flex; flex-direction: column; }
 .setcard .lab { font-family: var(--font-sans); color: var(--fg1); font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 14px; display: block; }
 .seg { display: flex; gap: 8px; flex-wrap: wrap; }
 .seg.cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -235,7 +235,8 @@
 .vs-mid { text-align:center; }
 .vs-mid .x { font-family:var(--font-mono); font-size:1.6rem; color:var(--fg3); }
 .vs-mid .rnd { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.1em; color: var(--yellow-ink); margin-top:6px; }
-.warn { display:flex; align-items:flex-start; gap:10px; background: rgba(255,223,0,.08); border:1px solid rgba(255,223,0,.25); border-radius:var(--r-md); padding:12px 14px; font-size:13px; color:var(--fg2); }
+.warn { display:flex; align-items:center; gap:10px; background: rgba(255,223,0,.08); border:1px solid rgba(255,223,0,.25); border-radius:var(--r-md); padding:12px 14px; font-size:13px; color:var(--fg2); }
+.warn > span:first-child { flex-shrink:0; font-size:16px; line-height:1; }
 .warn b { color: var(--yellow-ink); }
 
 /* ---------- MATCH ---------- */
@@ -281,6 +282,13 @@
 .tk.away.goal { background: linear-gradient(90deg, rgba(229,72,77,.16), var(--surface-1)); }
 .tk.away .mn { color: var(--loss); }
 .tk.away.goal .tx { color: var(--fg1); font-weight:600; }
+/* my team's events read green */
+.tk.mine { border-left-color: var(--green-bright); background: linear-gradient(90deg, rgba(0,168,89,.07), var(--surface-1)); }
+.tk.mine .mn { color: var(--green-bright); }
+/* penalty: who it's for */
+.pk-side-banner { display:flex; align-items:center; justify-content:center; gap:10px; font-weight:700; font-size:14px; letter-spacing:.02em; padding:10px 14px; border-radius:var(--r-md); margin-bottom:14px; }
+.pk-side-banner.favor { color:var(--green-bright); background:rgba(0,168,89,.12); border:1px solid rgba(0,168,89,.4); }
+.pk-side-banner.contra { color:var(--loss); background:rgba(229,72,77,.12); border:1px solid rgba(229,72,77,.4); }
 /* in-match speed selector (pacing only) */
 .speed-mini { display:inline-flex; gap:0; border:1px solid var(--hairline); border-radius:var(--r-sm); overflow:hidden; }
 .speed-mini button { font-family:var(--font-mono); font-size:11px; padding:5px 9px; background:var(--surface-1); color:var(--fg3); border:none; border-left:1px solid var(--hairline); cursor:pointer; transition: all .2s var(--ease-smooth); }
@@ -324,8 +332,9 @@
 .gcal-fx .gcal-a { display:flex; align-items:center; gap:7px; }
 .gcal-fx .fi { width:20px !important; height:13px; }
 .gcal-fx .gcal-sc { font-family:var(--font-mono); font-weight:700; color:var(--fg2); min-width:64px; text-align:center; }
-.gcal-fx.mine { font-weight:600; }
-.gcal-fx.mine .gcal-sc { color: var(--yellow-ink); }
+.gcal-fx.mine { font-weight:600; background: linear-gradient(90deg, rgba(0,168,89,.12), transparent); box-shadow: inset 3px 0 0 var(--green-bright); border-radius: 0 var(--r-sm) var(--r-sm) 0; padding-left: 9px; margin-left: -9px; }
+.gcal-fx.mine + .gcal-fx { border-top-color: transparent; }
+.gcal-fx.mine .gcal-sc { color: var(--green-bright); }
 
 /* post-match hero actions + draw result + campaign-end cards */
 .final-score .res.draw { color: var(--yellow-ink); }
@@ -459,8 +468,27 @@
 .stamina.fresh .stamina-bar i { background: linear-gradient(90deg, var(--green), var(--green-bright)); }
 .stamina.tired .stamina-bar i { background: linear-gradient(90deg, var(--yellow-deep), var(--yellow)); }
 .stamina.spent .stamina-bar i { background: linear-gradient(90deg, #b0341f, var(--loss)); }
-.ov-pen { color: var(--loss); font-size:11px; font-weight:600; }
-.ov-boost { color: var(--green-bright); font-size:11px; font-weight:700; }
+/* per-player overall cell: fixed width so the numbers stay aligned; a small
+   net-delta chip + a tap target that opens the breakdown modal */
+.ovbox { display:inline-flex; align-items:center; justify-content:flex-end; gap:6px; min-width:78px; background:none; border:none; padding:0; cursor:pointer; }
+.ov-num { font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--green-bright); min-width:24px; text-align:right; }
+.ovbox:hover .ov-num { text-decoration:underline; text-underline-offset:2px; }
+.ov-delta { font-family:var(--font-mono); font-size:10px; font-weight:700; line-height:1.4; padding:1px 6px; border-radius:20px; }
+.ov-delta.up { color:var(--green-bright); background:rgba(0,168,89,.16); }
+.ov-delta.down { color:var(--loss); background:rgba(229,72,77,.16); }
+/* overall breakdown modal */
+.ovr-breakdown { display:flex; flex-direction:column; gap:2px; }
+.ovr-line { display:flex; align-items:center; justify-content:space-between; padding:9px 4px; border-bottom:1px solid var(--hairline); font-size:14px; color:var(--fg2); }
+.ovr-line b { font-family:var(--font-mono); color:var(--fg1); }
+.ovr-line.up b { color:var(--green-bright); }
+.ovr-line.down b { color:var(--loss); }
+.ovr-line.total { border-bottom:none; border-top:2px solid var(--hairline); margin-top:4px; font-weight:600; color:var(--fg1); }
+.ovr-line.total b { font-size:1.3rem; color:var(--green-bright); }
+/* clickable opponent in the vs panel */
+.vs-opp { background:none; border:none; cursor:pointer; font:inherit; color:inherit; border-radius:var(--r-md); padding:6px 8px; transition:background .2s var(--ease-smooth); }
+.vs-opp:hover { background:var(--surface-2); }
+.vs-opp-hint { font-family:var(--font-mono); font-size:11px; color:var(--green-bright); }
+.howto-cta { font-size:14px; }
 .chem-tag { font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--green-bright); background:rgba(0,168,89,.14); border:1px solid rgba(0,168,89,.4); padding:1px 6px; border-radius:20px; }
 .prematch-warnings { margin-bottom: 18px; }
 .bench-head { font-family:var(--font-mono); font-size:11px; color:var(--fg3); padding:10px 18px 4px; border-top:1px solid var(--hairline); letter-spacing:.04em; }
@@ -548,7 +576,17 @@
 .ach-card { display:flex; align-items:center; gap:13px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--r-md); padding:14px 16px; transition:all .25s var(--ease-smooth); }
 .ach-card.got { border-color:rgba(255,223,0,.4); background:linear-gradient(145deg, rgba(255,223,0,.08), var(--surface-1)); }
 .ach-card.locked { opacity:.5; }
-.ach-card-ic { font-size:26px; line-height:1; flex-shrink:0; }
+.ach-card-ic { font-size:26px; line-height:1; flex-shrink:0; width:30px; text-align:center; }
+/* end-of-campaign team stats — aligned grid rows */
+.stat-awards { display:flex; flex-direction:column; gap:10px; }
+.stat-award { display:grid; grid-template-columns:44px 1fr auto; align-items:center; gap:14px; background:linear-gradient(145deg, rgba(255,223,0,.10), var(--surface-2)); border:1px solid rgba(255,223,0,.28); border-radius:var(--r-card); padding:14px 18px; }
+.sa-ic { font-size:1.7rem; line-height:1; text-align:center; }
+.sa-mid { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.sa-title { font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--yellow-ink); }
+.sa-name { font-size:1.05rem; font-weight:600; display:flex; align-items:center; gap:8px; }
+.sa-meta { font-size:12px; color:var(--fg2); }
+.sa-big { font-family:var(--font-mono); font-size:1.8rem; font-weight:700; color:var(--yellow-ink); text-align:right; }
+.post-group-results { display:flex; flex-direction:column; gap:2px; }
 .ach-card-tx { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .ach-card-name { font-size:14px; font-weight:600; }
 .ach-card.locked .ach-card-name { color:var(--fg2); }

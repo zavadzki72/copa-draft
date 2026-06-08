@@ -12,13 +12,20 @@ function evLine(p) {
   return bits.join(' · ');
 }
 
-function PostMatchScreen({ log, ratings, round, onNext }) {
+function PostMatchScreen({ log, ratings, round, me, group, standings, onNext }) {
   const Modal = window.Modal;
+  const C = window.CONFIG;
   const t = (k, v) => window.I18N.t(k, v);
-  const [modal, setModal] = useState(null);   // 'notes' | 'goals' | null
+  const [modal, setModal] = useState(null);   // 'notes' | 'goals' | 'group' | null
   const [tab, setTab] = useState('home');
 
   const isGroup = round.stage === 'group';
+  // resolve a team id ('me' or a squad id) for the group modal
+  const ginfo = (id) => {
+    if (id === 'me') return { name: me ? me.name : log.home.name, dream: true };
+    const sq = group && group.rivals.find(x => x.id === id);
+    return sq ? { name: sq.team, code: sq.code, cup: sq.cup } : { name: id };
+  };
   const won = log.result === 'home';
   const drew = log.result === 'draw';
   const isFinal = round.id === 'final';
@@ -83,6 +90,7 @@ function PostMatchScreen({ log, ratings, round, onNext }) {
       <div className="post-actions">
         <button className="btn btn-ghost" onClick={() => { setTab('home'); setModal('notes'); }}>{t('ui.post.notesBtn')}</button>
         {goals.length > 0 && <button className="btn btn-ghost" onClick={() => setModal('goals')}>{t('ui.post.goalsBtn', { n: goals.length })}</button>}
+        {isGroup && group && standings && <button className="btn btn-ghost" onClick={() => setModal('group')}>{t('ui.post.groupBtn')}</button>}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
@@ -121,6 +129,41 @@ function PostMatchScreen({ log, ratings, round, onNext }) {
                   <span className="nm">{scorer ? scorer.name : '—'}
                     {assist && <span className="ev">{t('ui.post.assist', { name: assist.name })}</span>}</span>
                   <span className="pp">{g.side === 'home' ? log.home.name : log.away.name}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'group' && Modal && group && standings && (
+        <Modal title={t('ui.post.groupTitle')} eyebrow={t('ui.post.groupTok')} onClose={() => setModal(null)} wide>
+          <div className="group-table" style={{ marginBottom: 18 }}>
+            <div className="gt-row gt-head">
+              <span className="gt-pos"></span><span className="gt-team">{t('ui.post.team')}</span>
+              <span>P</span><span>J</span><span>V</span><span>E</span><span>D</span><span>GP</span><span>GC</span><span>SG</span>
+            </div>
+            {standings.map((r, i) => {
+              const gi = ginfo(r.teamRef);
+              return (
+                <div className={`gt-row ${i < C.GROUP_QUALIFY ? 'qualify' : ''} ${r.teamRef === 'me' ? 'me' : ''}`} key={r.teamRef}>
+                  <span className="gt-pos">{i + 1}</span>
+                  <span className="gt-team">{gi.dream ? <Crest className="cr-inline" /> : <Flag code={gi.code} />} {gi.name}</span>
+                  <span className="gt-p">{r.P}</span><span>{r.J}</span><span>{r.V}</span><span>{r.E}</span><span>{r.D}</span>
+                  <span>{r.GP}</span><span>{r.GC}</span><span>{r.SG > 0 ? '+' + r.SG : r.SG}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="shead" style={{ margin: '0 0 8px' }}><span className="tok">{t('ui.post.groupResults')}</span></div>
+          <div className="post-group-results">
+            {group.fixtures.filter(f => f.result).map((f, i) => {
+              const h = ginfo(f.home), a = ginfo(f.away);
+              return (
+                <div className={`gcal-fx ${f.isPlayer ? 'mine' : ''}`} key={i}>
+                  <span className="gcal-h">{h.dream ? <Crest className="cr-inline" /> : <Flag code={h.code} />} {h.name}</span>
+                  <span className="gcal-sc">{f.result.home} – {f.result.away}</span>
+                  <span className="gcal-a">{a.name} {a.dream ? <Crest className="cr-inline" /> : <Flag code={a.code} />}</span>
                 </div>
               );
             })}
@@ -201,12 +244,6 @@ function CampaignEndScreen({ won, me, bracket, unlocked, mode, stats, group, sta
       achCount: unlockedSet.size, achTotal: window.ACHIEVEMENTS.LIST.length,
     };
   }
-  async function onDownload() {
-    setShareMsg(t('ui.end.gen'));
-    try { await window.SHARECARD.download(shareData(), won ? 'copa-draft-campeao' : 'copa-draft'); setShareMsg(t('ui.end.genOk')); }
-    catch (e) { setShareMsg(t('ui.end.genErr')); }
-    setTimeout(() => setShareMsg(''), 2500);
-  }
   async function onCopy() {
     const ok = await window.SHARECARD.copySummary(shareData());
     setShareMsg(ok ? t('ui.end.copyOk') : t('ui.end.copyErr'));
@@ -256,8 +293,14 @@ function CampaignEndScreen({ won, me, bracket, unlocked, mode, stats, group, sta
       <p className="sub">{sub}</p>
 
       <div className="share-row">
-        <button className="btn btn-yellow" onClick={onDownload}>{t('ui.end.download')}</button>
-        <button className="btn btn-ghost" onClick={onCopy}>{t('ui.end.copy')}</button>
+        <button className="btn btn-ghost" onClick={onCopy}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+            <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
+          </svg>
+          {t('ui.end.copy')}
+        </button>
         <button className="btn btn-green" onClick={onRestart}>{t('ui.end.restart')}</button>
       </div>
       {shareMsg && <div className="share-msg">{shareMsg}</div>}
@@ -280,15 +323,17 @@ function CampaignEndScreen({ won, me, bracket, unlocked, mode, stats, group, sta
 
       {modal === 'stats' && Modal && (
         <Modal title={t('ui.end.statsTitle')} eyebrow={t('ui.end.statsTok')} onClose={() => setModal(null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p className="p" style={{ marginTop: 0, marginBottom: 14, fontSize: 13 }}>{t('ui.end.statsIntro')}</p>
+          <div className="stat-awards">
             {awards.map((a, i) => (
-              <div className="motm" key={i}>
-                <span className="badge badge-yellow">{a.icon} {a.title}</span>
-                <div className="motm-mid">
-                  <div className="nm">{a.p.name}</div>
-                  <div className="meta"><PosPill pos={a.p.pos} /> {a.meta}</div>
+              <div className="stat-award" key={i}>
+                <span className="sa-ic">{a.icon}</span>
+                <div className="sa-mid">
+                  <div className="sa-title">{a.title}</div>
+                  <div className="sa-name"><PosPill pos={a.p.pos} /> {a.p.name}</div>
+                  <div className="sa-meta">{a.meta}</div>
                 </div>
-                <span className="rt">{a.big}</span>
+                <span className="sa-big">{a.big}</span>
               </div>
             ))}
           </div>

@@ -253,7 +253,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
           <div className="draft-pool">
             <div className="pitch-head">
               <span className="tok">{t('ui.draft.tokLineup')}</span>
-              <span className="pitch-hint">{t('ui.draft.captainHint')}</span>
+              <span className="pitch-hint">{t('ui.draft.captainHint', { cap: C.CAPTAIN_OVR_BOOST, chem: C.CHEMISTRY_OVR_BOOST })}</span>
             </div>
             <Pitch starters={fills.slice(0, 11)} formation={formation} starId={starId} hideOvr={mode === 'almanaque'} />
           </div>
@@ -275,8 +275,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     <div className="stage screen-fade">
       <div className="shead">
         <div>
-          <span className="tok">{t('ui.draft.tokDraft')}</span>
-          <h2 style={{ marginTop: 4 }}>{t('ui.draft.draftTitle')}</h2>
+          <h2>{t('ui.draft.draftTitle')}</h2>
         </div>
         <span className="meta">{t('ui.draft.draftMeta', { n: filledCount, total, formation })}</span>
       </div>

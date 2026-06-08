@@ -82,7 +82,8 @@ function PenaltyShootout({ home, away, sfx, onComplete }) {
       scored = computeGoal(actualShoot, actualGk, kicker.attrs.shooting, gkOvr);
     }
     const outcome = scored ? 'goal' : (actualShoot === actualGk ? 'save' : 'miss');
-    beep(outcome === 'goal' ? 'goal' : outcome === 'save' ? 'save' : 'miss');
+    // a converted kick sounds celebratory for you, sober for the opponent (same as open play)
+    beep(outcome === 'goal' ? (youKick ? 'goal' : 'goalAway') : outcome === 'save' ? 'save' : 'miss');
     setAnim({ shoot: actualShoot, gk: actualGk, scored, youKick, kicker, outcome });
     setPhase('anim');
 
@@ -272,7 +273,7 @@ function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
     else { shoot = aiShoot(); gkZone = pick; }
     const scored = computeGoal(shoot, gkZone);
     const outcome = scored ? 'goal' : (shoot === gkZone ? 'save' : 'miss');
-    beep(outcome === 'goal' ? 'goal' : outcome === 'save' ? 'save' : 'miss');
+    beep(outcome === 'goal' ? (youKick ? 'goal' : 'goalAway') : outcome === 'save' ? 'save' : 'miss');
     setAnim({ shoot, gk: gkZone, outcome });
     setPhase('anim');
     setTimeout(() => { if (!doneRef.current) setPhase('done'); }, reduced ? 120 : 950);
@@ -296,6 +297,10 @@ function InMatchPenalty({ youKick, taker, gk, sfx, onComplete }) {
         <div className="shead" style={{ marginBottom: 12 }}>
           <div><span className="tok">{t('ui.penalty.imTok')}</span><h2 style={{ marginTop: 4 }}>{t('ui.penalty.imTitle')}</h2></div>
           <span className="meta">{youKick ? t('ui.penalty.youKick') : t('ui.penalty.youSave')}</span>
+        </div>
+        <div className={`pk-side-banner ${youKick ? 'favor' : 'contra'}`}>
+          <span aria-hidden="true">{youKick ? '⚽' : '🧤'}</span>
+          <span>{youKick ? t('ui.penalty.forYou') : t('ui.penalty.against')}</span>
         </div>
 
         <div className={`pk-stage ${anim ? 'shot-' + anim.outcome : ''}`}>

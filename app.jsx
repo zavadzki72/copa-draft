@@ -60,6 +60,7 @@ function App() {
   const [group, setGroup] = useState(null);        // { rivals, teams, fixtures }
   const [groupRound, setGroupRound] = useState(0); // index of the player's next group round
   const [eliminatedInGroup, setEliminatedInGroup] = useState(false);
+  const [groupResult, setGroupResult] = useState(null); // this round's fixtures (incl. results) — computed at post time
 
   // ---- knockout ----
   const [bracket, setBracket] = useState([]);
@@ -292,18 +293,21 @@ function App() {
       penalties: finalLog.penalties, score: finalLog.score,
       opp: finalLog.away.name, code: finalLog.away.code, cup: finalLog.away.cup,
       short: ar.short, stage: isGroup ? 'group' : 'knockout' }]);
+    // for a group match, resolve this round's rivals NOW so the post screen can
+    // show the other results + the updated table; advanceGroup reuses it.
+    setGroupResult(isGroup ? groupFixturesAfter(finalLog) : null);
     window.SFX.play(wonMatch ? 'win' : 'lose');
     setPhase('post');
   }
 
   function finishMatch() { recordAndPost(match.log); }
 
-  // simulate this round's AI×AI rivals + record the player's result, then
-  // advance to the next round (or mark the group complete).
-  function advanceGroup() {
+  // this round's fixtures with results filled in: the player's score + the
+  // seeded AI×AI rival simulations. Pure for a given (log, group, round).
+  function groupFixturesAfter(log) {
     const r = activeRound.fixtureRound;
-    const pg = match.log.score.home, og = match.log.score.away;
-    const fixtures = group.fixtures.map(f => {
+    const pg = log.score.home, og = log.score.away;
+    return group.fixtures.map(f => {
       if (f.result || f.round !== r) return f;
       if (f.isPlayer) {
         return { ...f, result: f.home === 'me' ? { home: pg, away: og } : { home: og, away: pg } };
@@ -316,8 +320,15 @@ function App() {
       const lg = window.ENGINE.simulateMatch(hs, as, C, seed, { knockout: false, fatigue: false, pressure: false });
       return { ...f, result: { home: lg.score.home, away: lg.score.away } };
     });
+  }
+
+  // advance to the next round (or mark the group complete), reusing the
+  // already-resolved fixtures from post time.
+  function advanceGroup() {
+    const fixtures = groupResult || groupFixturesAfter(match.log);
     setGroup({ ...group, fixtures });
-    setGroupRound(r + 1);
+    setGroupRound(activeRound.fixtureRound + 1);
+    setGroupResult(null);
     setPhase('group');
   }
 
@@ -343,7 +354,7 @@ function App() {
     setPhase('home');
     setTeam({ starters: [], bench: [], starId: null });
     setFatigue({}); setPlayerStatus({}); setCampaignStats({}); setLineup({ starters: [], bench: [] });
-    setRunSeed(0); setGroup(null); setGroupRound(0); setEliminatedInGroup(false);
+    setRunSeed(0); setGroup(null); setGroupRound(0); setEliminatedInGroup(false); setGroupResult(null);
     setBracket([]); setCurrentIdx(0); setActiveRound(null);
     setMatch(null); setPendingPen(null); setWon(false);
     setUnlocked([]); setToasts([]); setHistory([]);
@@ -409,7 +420,10 @@ function App() {
       )}
 
       {phase === 'post' && match && (
-        <PostMatchScreen log={match.log} ratings={match.ratings} round={activeRound} onNext={nextAfterPost} />
+        <PostMatchScreen log={match.log} ratings={match.ratings} round={activeRound} me={ME}
+          group={groupResult ? { ...group, fixtures: groupResult } : group}
+          standings={groupResult ? window.TEAM.groupStandings({ ...group, fixtures: groupResult }) : standings}
+          onNext={nextAfterPost} />
       )}
 
       {phase === 'end' && (

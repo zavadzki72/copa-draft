@@ -14,10 +14,17 @@ function Flag({ code, className = '' }) {
 function Crest({ className = '' }) {
   return (
     <span className={`crest ${className}`} role="img" aria-label={window.I18N.t('team.name')}>
-      <svg className="cr-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M5 13.5 L12 7 L19 13.5"></path>
-        <path d="M5 17.5 L12 11 L19 17.5"></path>
+      {/* footballer striking a ball — white silhouette on the brand disc */}
+      <svg className="cr-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <g fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 7.6 L12.4 12.4"></path>
+          <path d="M12.4 12.4 L9 19.6"></path>
+          <path d="M12.4 12.4 L15.8 13 L18.4 10.3"></path>
+          <path d="M11.4 9 L7.5 10.2"></path>
+          <path d="M11.8 8.6 L15.3 7.6"></path>
+        </g>
+        <circle cx="10.4" cy="4.6" r="2.3" fill="currentColor"></circle>
+        <circle cx="19.8" cy="12.1" r="2.1" fill="currentColor"></circle>
       </svg>
     </span>
   );

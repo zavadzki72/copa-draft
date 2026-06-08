@@ -15,13 +15,16 @@ function StaminaBar({ fatigue }) {
 
 function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, playerStatus, opponentXI, opponentAvg, onStart }) {
   const C = window.CONFIG;
+  const Modal = window.Modal;
   const t = (k, v) => window.I18N.t(k, v);
   const opp = round.opponent;
-  const keyMen = [...opponentXI].sort((a, b) => b.overall - a.overall).slice(0, 3);
+  const oppMen = [...opponentXI].sort((a, b) => b.overall - a.overall);
 
   const [xi, setXi] = useState(starters);
   const [res, setRes] = useState(bench);
   const [sel, setSel] = useState(null);       // selected bench id to swap in
+  const [ovrInfo, setOvrInfo] = useState(null);   // player whose overall breakdown is open
+  const [showOpp, setShowOpp] = useState(false);  // opponent scouting modal
 
   const origIds = useMemo(() => new Set(starters.map(p => p.id)), [starters]);
   const stOf = (id) => window.TEAM.statusOf(playerStatus, id);   // null when available
@@ -125,12 +128,13 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           <span className="x">×</span>
           <span className="rnd">{window.roundText(round, 'short')}</span>
         </div>
-        <div className="vs-side">
+        <button className="vs-side vs-opp" onClick={() => setShowOpp(true)} title={t('ui.match.oppView')}>
           <Flag code={opp.code} />
           <span className="tn">{opp.team}</span>
           <span className="cup">{opp.cup}</span>
           <span className="ovr" style={{ color: 'var(--fg2)' }}>{opponentAvg}</span>
-        </div>
+          <span className="vs-opp-hint">{t('ui.match.oppView')} →</span>
+        </button>
       </div>
 
       <div className="prematch-grid">
@@ -171,7 +175,14 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                       {boostOf(p) > 0 && p.id !== starId && <span className="chem-tag" title={t('ui.match.chemTitle', { team: p.team, cup: p.cup })}>{t('ui.match.chemTag')}</span>}
                     </span>
                     <StaminaBar fatigue={f} />
-                    <span className="ov">{effOvr(p)}{(fatPen(p) + pr) > 0 && <span className="ov-pen"> −{fatPen(p) + pr}</span>}{boostOf(p) > 0 && <span className="ov-boost"> +{boostOf(p)}</span>}</span>
+                    <button className="ovbox" onClick={() => setOvrInfo(p)} title={t('ui.match.ovrInfoTitle')} aria-label={t('ui.match.ovrInfoTitle')}>
+                      {effOvr(p) - p.overall !== 0 && (
+                        <span className={`ov-delta ${effOvr(p) - p.overall > 0 ? 'up' : 'down'}`}>
+                          {effOvr(p) - p.overall > 0 ? '+' : '−'}{Math.abs(effOvr(p) - p.overall)}
+                        </span>
+                      )}
+                      <b className="ov-num">{effOvr(p)}</b>
+                    </button>
                   </div>
                 );
               })}
@@ -198,19 +209,6 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
               })}
             </div>
           </div>
-
-          <div className="squadbox" style={{ marginTop: 16 }}>
-            <div className="hd"><h3>{t('ui.match.opponent')}</h3><span className="cnt" style={{ color: 'var(--fg3)' }}>{t('ui.match.highlights')}</span></div>
-            <div className="slot-list">
-              {keyMen.map(p => (
-                <div className="slot" key={p.id}>
-                  <span className="pp">{p.pos}</span>
-                  <span className="nm">{p.name}</span>
-                  <span className="ov" style={{ color: 'var(--fg2)' }}>{p.overall}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -220,6 +218,34 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           {t('ui.match.start')}
         </button>
       </div>
+
+      {ovrInfo && Modal && (
+        <Modal title={t('ui.match.ovrInfoTitle')} eyebrow={ovrInfo.name} onClose={() => setOvrInfo(null)}>
+          <div className="ovr-breakdown">
+            <div className="ovr-line"><span>{t('ui.match.ovrBase')}</span><b>{ovrInfo.overall}</b></div>
+            {fatPen(ovrInfo) > 0 && <div className="ovr-line down"><span>{t('ui.match.ovrFatigue')}</span><b>−{fatPen(ovrInfo)}</b></div>}
+            {pressOf(ovrInfo) > 0 && <div className="ovr-line down"><span>{t('ui.match.ovrPressure')}</span><b>−{pressOf(ovrInfo)}</b></div>}
+            {boostOf(ovrInfo) > 0 && <div className="ovr-line up"><span>{ovrInfo.id === starId ? t('ui.match.ovrCaptain') : t('ui.match.ovrChem')}</span><b>+{boostOf(ovrInfo)}</b></div>}
+            <div className="ovr-line total"><span>{t('ui.match.ovrEff')}</span><b>{effOvr(ovrInfo)}</b></div>
+          </div>
+          <p className="p" style={{ marginTop: 16, fontSize: 13 }}>{t('ui.match.ovrExplain', { cap: C.CAPTAIN_OVR_BOOST, chem: C.CHEMISTRY_OVR_BOOST, penMax: C.FATIGUE_PENALTY_MAX })}</p>
+        </Modal>
+      )}
+
+      {showOpp && Modal && (
+        <Modal title={`${opp.team} ${opp.cup}`} eyebrow={t('ui.match.oppTok')} onClose={() => setShowOpp(false)}>
+          <p className="p" style={{ marginTop: 0, marginBottom: 14, fontSize: 13 }}>{t('ui.match.oppAvgLine', { avg: opponentAvg })}</p>
+          <div className="slot-list">
+            {oppMen.map(p => (
+              <div className="slot" key={p.id}>
+                <span className="pp">{p.pos}</span>
+                <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}</span>
+                <span className="ov" style={{ color: 'var(--fg2)' }}>{p.overall}</span>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -372,7 +398,7 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
 
       <div className="ticker" role="log" aria-live="polite" ref={tickerRef}>
         {feed.map((e, i) => (
-          <div className={`tk ${e.type} ${e.side === 'away' ? 'away' : ''}`} key={`${e.minute}-${i}-${e.text.slice(0, 8)}`}>
+          <div className={`tk ${e.type} ${e.side === 'away' ? 'away' : e.side === 'home' ? 'mine' : ''}`} key={`${e.minute}-${i}-${e.text.slice(0, 8)}`}>
             <span className="mn">{e.minute > 0 ? `${e.minute}'` : '•'}</span>
             <span className="tx">{e.text}</span>
           </div>

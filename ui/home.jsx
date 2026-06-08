@@ -94,7 +94,14 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
           🎲 {canResume ? t('ui.home.startNew') : t('ui.home.startDraft')}
         </button>
         {onHowTo && (
-          <button className="btn-mini" onClick={onHowTo}>{t('ui.home.howto')}</button>
+          <button className="btn btn-ghost howto-cta" onClick={onHowTo}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"></path>
+              <line x1="12" y1="17" x2="12" y2="17"></line>
+            </svg>
+            {t('ui.home.howto')}
+          </button>
         )}
         {profile && profile.plays > 0 && (
           <span className="home-stats">{t('ui.home.stats', { plays: profile.plays, titles: profile.titles, ach: (profile.achievements || []).length, total: window.ACHIEVEMENTS.LIST.length })}</span>
