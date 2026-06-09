@@ -1,0 +1,502 @@
+/* ============================================================
+   COPA DRAFT — ui/mp.jsx
+   Multiplayer Online (PRD_004 MVP). Server-authoritative: the .NET
+   backend owns lobby, draft deadline and the tournament; this UI
+   renders what the server streams (SignalR) and reuses the solo
+   components (DraftScreen, MatchScreen, tables) wherever possible.
+   Strings are PT-only in the MVP (decision documented in the PLAN).
+   ============================================================ */
+const MP_STRINGS_PT = true; // MVP: multiplayer é PT-BR (i18n fica para um follow-up)
+
+/* my side must render as 'home' (solo invariant: player == home).
+   When the server says I'm 'away', mirror the log. */
+function mpFlipLog(log) {
+  const swapScore = (s) => (s ? { home: s.away, away: s.home } : s);
+  const swapSide = (side) => (side === 'home' ? 'away' : side === 'away' ? 'home' : side);
+  return {
+    ...log,
+    home: log.away, away: log.home,
+    score: swapScore(log.score),
+    conceded: swapScore(log.conceded),
+    penalties: swapScore(log.penalties),
+    manDown: log.manDown ? { home: log.manDown.away, away: log.manDown.home } : log.manDown,
+    result: log.result === 'home' ? 'away' : log.result === 'away' ? 'home' : log.result,
+    events: (log.events || []).map(e => ({ ...e, side: swapSide(e.side), score: swapScore(e.score) })),
+    matchPens: (log.matchPens || []).map(p => ({ ...p, side: swapSide(p.side) })),
+  };
+}
+
+/* resolve a snapshot team id to display info (flag from the shared pool) */
+function mpTeamInfo(snap, teamId) {
+  let entry = null;
+  if (snap) {
+    for (const g of snap.groups) {
+      entry = g.teams.find(t => t.id === teamId);
+      if (entry) break;
+    }
+  }
+  const name = entry ? entry.name : teamId;
+  if (teamId && teamId.startsWith('ai:')) {
+    const sq = window.SQUADS.find(s => 'ai:' + s.id === teamId);
+    return { name, code: sq ? sq.code : null, isHuman: false };
+  }
+  return { name, isHuman: true };
+}
+
+function MpMark({ snap, id }) {
+  const info = mpTeamInfo(snap, id);
+  return info.isHuman ? <Crest className="cr-inline" /> : <Flag code={info.code} />;
+}
+
+/* countdown chip for the draft deadline (server enforces the real one) */
+function MpTimer({ deadline }) {
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    const tick = () => setLeft(Math.max(0, Math.round((new Date(deadline) - Date.now()) / 1000)));
+    tick();
+    const iv = setInterval(tick, 500);
+    return () => clearInterval(iv);
+  }, [deadline]);
+  const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
+  return <span className={`mp-timer ${left <= 20 ? 'low' : ''}`}>⏱ {mm}:{ss}</span>;
+}
+
+function MpLogin({ onDone, onExit }) {
+  const btnRef = useRef(null);
+  const [err, setErr] = useState(null);
+  const cid = window.CONFIG.MP.GOOGLE_CLIENT_ID;
+  useEffect(() => {
+    if (!cid) return;
+    const ok = window.MPAUTH.renderGoogleButton(btnRef.current, (session, e) => {
+      if (session) onDone(session); else setErr(e ? e.message : 'Falha no login.');
+    });
+    if (!ok) setErr('Login do Google indisponível. Recarregue a página.');
+  }, []);
+  return (
+    <div className="stage narrow screen-fade mp-center">
+      <span className="tok">MULTIPLAYER ONLINE</span>
+      <h2>Jogue a Copa com seus amigos</h2>
+      <p className="sub">Crie uma sala, mande o convite, cada um monta seu time — e o torneio rola ao vivo, com todos em grupos diferentes até se cruzarem no mata-mata.</p>
+      {cid
+        ? <div ref={btnRef} className="mp-google-btn" />
+        : <p className="mp-error">⚠ Multiplayer não configurado (defina CONFIG.MP.GOOGLE_CLIENT_ID).</p>}
+      {err && <p className="mp-error">{err}</p>}
+      <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
+    </div>
+  );
+}
+
+function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
+  const [code, setCode] = useState('');
+  return (
+    <div className="stage narrow screen-fade mp-center">
+      <span className="tok">MULTIPLAYER ONLINE</span>
+      <h2>Olá, {user.name.split(' ')[0]}!</h2>
+      <div className="setgrid mp-menu">
+        <div className="setcard">
+          <span className="lab">Criar sala</span>
+          <p className="p">Você vira o anfitrião e recebe um código para convidar os amigos.</p>
+          <button className="btn btn-green" disabled={busy} onClick={onCreate}>➕ Criar sala</button>
+        </div>
+        <div className="setcard">
+          <span className="lab">Entrar numa sala</span>
+          <p className="p">Recebeu um convite? Cole o código aqui.</p>
+          <div className="mp-join-row">
+            <input className="mp-input" value={code} maxLength={6}
+              placeholder="CÓDIGO" onChange={e => setCode(e.target.value.toUpperCase())} />
+            <button className="btn btn-yellow" disabled={busy || code.length < 6}
+              onClick={() => onJoin(code)}>Entrar</button>
+          </div>
+        </div>
+      </div>
+      {error && <p className="mp-error">{error}</p>}
+      <div className="mp-foot">
+        <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
+        <button className="btn btn-ghost" onClick={onLogout}>Sair da conta</button>
+      </div>
+    </div>
+  );
+}
+
+function MpLobby({ room, meId, error, onReady, onStart, onLeave }) {
+  const me = room.players.find(p => p.userId === meId);
+  const isHost = room.hostUserId === meId;
+  const readyCount = room.players.filter(p => p.ready).length;
+  const link = location.origin + location.pathname + '?sala=' + room.code;
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try { navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1600); }
+    catch (e) {}
+  };
+  return (
+    <div className="stage narrow screen-fade">
+      <div className="shead">
+        <div>
+          <span className="tok">SALA · LOBBY</span>
+          <h2 style={{ marginTop: 4 }}>Convide os amigos</h2>
+        </div>
+        <span className="meta">{room.players.length}/{room.maxPlayers} jogadores</span>
+      </div>
+
+      <div className="mp-invite setcard">
+        <span className="lab">Código da sala</span>
+        <div className="mp-code">{room.code}</div>
+        <button className="btn btn-ghost" onClick={copy}>{copied ? '✓ Copiado!' : '📋 Copiar link de convite'}</button>
+      </div>
+
+      <div className="mp-players">
+        {room.players.map(p => (
+          <div className={`mp-player ${p.userId === meId ? 'me' : ''}`} key={p.userId}>
+            {p.avatar ? <img className="mp-avatar" src={p.avatar} alt="" referrerPolicy="no-referrer" /> : <Crest className="cr-inline" />}
+            <span className="mp-pname">{p.name}{p.isHost ? ' 👑' : ''}</span>
+            <span className={`mp-presence ${p.presence}`}>{p.presence === 'conectado' ? '' : p.presence === 'ia' ? '🤖 IA' : '⌀ saiu'}</span>
+            <span className={`mp-ready ${p.ready ? 'on' : ''}`}>{p.ready ? '✓ pronto' : 'aguardando'}</span>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="mp-error">{error}</p>}
+      <div className="mp-foot">
+        <button className="btn btn-ghost" onClick={onLeave}>← Sair da sala</button>
+        <button className={`btn ${me && me.ready ? 'btn-ghost' : 'btn-yellow'}`} onClick={() => onReady(!(me && me.ready))}>
+          {me && me.ready ? 'Desmarcar pronto' : '✓ Estou pronto'}
+        </button>
+        {isHost && (
+          <button className="btn btn-green" disabled={room.players.length < 2} onClick={onStart}>
+            🚀 Iniciar ({readyCount}/{room.players.length} prontos)
+          </button>
+        )}
+      </div>
+      {isHost && room.players.length < 2 && <p className="p mp-hint">Convide pelo menos mais 1 amigo para iniciar.</p>}
+    </div>
+  );
+}
+
+/* groups + bracket, fed live by server snapshots */
+function MpTournament({ snap, meId, minute, yourMatch, onWatch }) {
+  const phase = snap.phase;
+  const roundInfo = snap.currentRound;
+  const teamName = (id) => mpTeamInfo(snap, id).name;
+  const champion = snap.championTeamId;
+  const myTeamId = 'h:' + meId;
+  const iAmChampion = champion === myTeamId;
+
+  return (
+    <div className="stage narrow screen-fade">
+      <div className="shead">
+        <div>
+          <span className="tok">TORNEIO DA SALA · {phase.toUpperCase()}</span>
+          <h2 style={{ marginTop: 4 }}>
+            {phase === 'encerrada'
+              ? (iAmChampion ? '🏆 Você é o campeão!' : `🏆 Campeão: ${champion ? teamName(champion) : '—'}`)
+              : roundInfo ? `${roundInfo.label} em andamento` : 'Aguardando próxima rodada…'}
+          </h2>
+        </div>
+        {roundInfo && phase !== 'encerrada' && <span className="meta">⏱ minuto {minute || 0}</span>}
+      </div>
+
+      {yourMatch && phase !== 'encerrada' && (
+        <div className="mp-yourmatch setcard">
+          <span className="lab">Sua partida está rolando</span>
+          <button className="btn btn-yellow" onClick={onWatch}>▶ Assistir minha partida</button>
+        </div>
+      )}
+
+      {snap.groups.map(g => (
+        <div key={g.label} className="mp-group">
+          <div className="shead" style={{ margin: '20px 0 10px' }}>
+            <span className="tok">GRUPO {g.label}</span>
+          </div>
+          <div className="group-table" role="table">
+            <div className="gt-row gt-head" role="row">
+              <span className="gt-pos"></span><span className="gt-team">Seleção</span>
+              <span>P</span><span>J</span><span>V</span><span>E</span><span>D</span>
+              <span>GP</span><span>GC</span><span>SG</span>
+            </div>
+            {g.standings.map((r, i) => {
+              const isMe = r.teamId === myTeamId;
+              return (
+                <div className={`gt-row ${i < 2 ? 'qualify' : ''} ${isMe ? 'me' : ''}`} role="row" key={r.teamId}>
+                  <span className="gt-pos">{i + 1}</span>
+                  <span className="gt-team"><MpMark snap={snap} id={r.teamId} /> {teamName(r.teamId)}</span>
+                  <span className="gt-p">{r.p}</span><span>{r.j}</span><span>{r.v}</span><span>{r.e}</span><span>{r.d}</span>
+                  <span>{r.gp}</span><span>{r.gc}</span><span>{r.sg > 0 ? '+' + r.sg : r.sg}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="group-cal" style={{ marginTop: 8 }}>
+            {[0, 1, 2].map(r => (
+              <div className="gcal-round" key={r}>
+                <div className="gcal-rlabel">Rodada {r + 1}</div>
+                {g.fixtures.filter(f => f.round === r).map(f => (
+                  <div className={`gcal-fx ${[f.homeId, f.awayId].includes(myTeamId) ? 'mine' : ''}`} key={f.fixtureId}>
+                    <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> {teamName(f.homeId)}</span>
+                    <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : 'a jogar'}</span>
+                    <span className="gcal-a">{teamName(f.awayId)} <MpMark snap={snap} id={f.awayId} /></span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {snap.bracket.length > 0 && (
+        <div className="mp-bracket">
+          <div className="shead" style={{ margin: '24px 0 10px' }}><span className="tok">MATA-MATA</span></div>
+          {snap.bracket.map(round => (
+            <div key={round.roundId} className="gcal-round" style={{ marginBottom: 10 }}>
+              <div className="gcal-rlabel">{window.roundText({ id: round.roundId }, 'label')}</div>
+              {round.ties.map(tie => (
+                <div className={`gcal-fx ${[tie.homeId, tie.awayId].includes(myTeamId) ? 'mine' : ''}`} key={tie.tieId}>
+                  <span className="gcal-h"><MpMark snap={snap} id={tie.homeId} /> {teamName(tie.homeId)}</span>
+                  <span className="gcal-sc">
+                    {tie.played
+                      ? `${tie.homeGoals} – ${tie.awayGoals}${tie.pensHome != null ? ` (${tie.pensHome}–${tie.pensAway} pen)` : ''}`
+                      : 'a jogar'}
+                  </span>
+                  <span className="gcal-a">{teamName(tie.awayId)} <MpMark snap={snap} id={tie.awayId} /></span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MpEnd({ snap, meId, onExit, onBackToTables }) {
+  const myTeamId = 'h:' + meId;
+  const champion = snap.championTeamId;
+  const iAmChampion = champion === myTeamId;
+  return (
+    <div className="stage narrow screen-fade mp-center">
+      <div className="mp-end-hero">
+        <div className="mp-end-emoji">{iAmChampion ? '🏆' : '🥈'}</div>
+        <span className="tok">TORNEIO ENCERRADO</span>
+        <h2>{iAmChampion ? 'CAMPEÃO DA SALA!' : `Campeão: ${mpTeamInfo(snap, champion).name}`}</h2>
+        <p className="sub">{iAmChampion
+          ? 'Seu time dos sonhos levou a taça contra seus amigos. Respeito eterno no grupo.'
+          : 'Não foi dessa vez — confira a campanha completa e peça revanche.'}</p>
+      </div>
+      <div className="mp-foot">
+        <button className="btn btn-ghost" onClick={onBackToTables}>📊 Ver campanha</button>
+        <button className="btn btn-green" onClick={onExit}>↻ Voltar ao início</button>
+      </div>
+    </div>
+  );
+}
+
+function MultiplayerApp({ sfx, onExit }) {
+  const [session, setSession] = useState(window.MPAUTH.session());
+  const [stage, setStage] = useState(window.MPAUTH.isLoggedIn() ? 'menu' : 'login');
+  const [room, setRoom] = useState(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [deadline, setDeadline] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [formation, setFormation] = useState('4-3-3');
+  const [formationChosen, setFormationChosen] = useState(false);
+  const [snap, setSnap] = useState(null);
+  const [minute, setMinute] = useState(0);
+  const [yourMatch, setYourMatch] = useState(null);
+  const [watching, setWatching] = useState(false);
+  const meId = session ? session.user.id : null;
+
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
+
+  // wire server events once
+  useEffect(() => {
+    const offs = [
+      window.MPRT.on('RoomState', (state) => {
+        setRoom(state);
+        if (state.state === 'draft' && ['lobby'].includes(stageRef.current)) setStage('draft');
+      }),
+      window.MPRT.on('DraftStarted', (info) => { setDeadline(info.deadline); setStage('draft'); }),
+      window.MPRT.on('DraftProgress', setProgress),
+      window.MPRT.on('TournamentState', (s) => {
+        setSnap(s);
+        if (['draft', 'draft-wait', 'lobby'].includes(stageRef.current)) setStage('tournament');
+        if (s.phase === 'encerrada' && stageRef.current === 'tournament') setStage('end');
+      }),
+      window.MPRT.on('YourMatch', (m) => { setYourMatch(m); setWatching(true); }),
+      window.MPRT.on('MinuteTick', setMinute),
+      window.MPRT.on('TournamentFinished', () => { /* snapshot 'encerrada' cuida da UI */ }),
+      window.MPRT.on('LobbyError', (msg) => setError(msg)),
+    ];
+    window.MPRT.onReconnected(() => {
+      const code = roomRef.current?.code;
+      if (code) {
+        window.MPRT.invoke('JoinRoom', code).catch(() => {});
+        window.MPRT.invoke('GetTournament', code).catch(() => {});
+      }
+    });
+    return () => offs.forEach(off => off());
+  }, []);
+
+  const roomRef = useRef(null);
+  roomRef.current = room;
+
+  async function enterRoom(code) {
+    setBusy(true); setError(null);
+    try {
+      await window.MPRT.connect();
+      await window.MPRT.invoke('JoinRoom', code);
+      setStage('lobby');
+    } catch (e) {
+      setError(e.message || 'Não foi possível entrar na sala.');
+    } finally { setBusy(false); }
+  }
+
+  async function createRoom() {
+    setBusy(true); setError(null);
+    try {
+      const created = await window.MPAPI.createRoom();
+      await window.MPRT.connect();
+      await window.MPRT.invoke('JoinRoom', created.code);
+      setStage('lobby');
+    } catch (e) {
+      setError(e.message || 'Não foi possível criar a sala.');
+    } finally { setBusy(false); }
+  }
+
+  // deep link ?sala=CODE
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get('sala');
+    if (code && window.MPAUTH.isLoggedIn() && stage === 'menu') enterRoom(code.toUpperCase());
+  }, []);
+
+  async function leaveAll() {
+    try { if (room) await window.MPRT.invoke('LeaveRoom', room.code); } catch (e) {}
+    await window.MPRT.disconnect();
+    onExit();
+  }
+
+  async function confirmDraft(starters, bench, starId) {
+    try {
+      await window.MPRT.invoke('SubmitTeam', room.code, {
+        formation,
+        starters: starters.map(p => p.id),
+        bench: bench.map(p => p.id),
+        captainId: starId,
+      });
+      setStage('draft-wait');
+    } catch (e) { setError(e.message || 'Falha ao enviar o time.'); }
+  }
+
+  // ---- render por estágio ----
+  if (stage === 'login')
+    return <MpLogin onExit={onExit} onDone={(s) => {
+      setSession(s);
+      setStage('menu');
+      const code = new URLSearchParams(location.search).get('sala');
+      if (code) enterRoom(code.toUpperCase());
+    }} />;
+
+  if (stage === 'menu')
+    return <MpMenu user={session.user} busy={busy} error={error} onExit={onExit}
+      onCreate={createRoom} onJoin={enterRoom}
+      onLogout={() => { window.MPAUTH.logout(); window.MPRT.disconnect(); setSession(null); setStage('login'); }} />;
+
+  if (stage === 'lobby' && room)
+    return <MpLobby room={room} meId={meId} error={error}
+      onReady={(r) => window.MPRT.invoke('SetReady', room.code, r).catch(() => {})}
+      onStart={() => window.MPRT.invoke('StartDraft', room.code).catch(() => {})}
+      onLeave={leaveAll} />;
+
+  if (stage === 'draft') {
+    if (!formationChosen) {
+      const fHint = { '4-3-3': 'fOfensiva', '4-4-2': 'fEquilibrado', '3-5-2': 'fMeio', '4-5-1': 'fDefensiva', '5-3-2': 'fRetranca', '3-4-3': 'fLouca' };
+      const opts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id }));
+      return (
+        <div className="stage narrow screen-fade mp-center">
+          <div className="mp-draft-head">
+            <span className="tok">DRAFT MULTIPLAYER</span>
+            {deadline && <MpTimer deadline={deadline} />}
+          </div>
+          <h2>Escolha sua formação</h2>
+          <p className="sub">Todos estão montando seus times agora. Quem não terminar a tempo recebe um time automático.</p>
+          <FormationSelect value={formation} onChange={setFormation} options={opts} />
+          <button className="btn btn-green" style={{ marginTop: 18 }} onClick={() => setFormationChosen(true)}>
+            🎲 Começar o draft
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div className="mp-draft-head stage narrow">
+          <span className="tok">DRAFT MULTIPLAYER</span>
+          {deadline && <MpTimer deadline={deadline} />}
+          {progress && <span className="meta">{progress.submitted}/{progress.total} times enviados</span>}
+        </div>
+        <DraftScreen formation={formation} mode="classico" sfx={sfx} onConfirm={confirmDraft} />
+      </div>
+    );
+  }
+
+  if (stage === 'draft-wait')
+    return (
+      <div className="stage narrow screen-fade mp-center">
+        <span className="tok">DRAFT MULTIPLAYER</span>
+        <h2>Time enviado! ✓</h2>
+        <p className="sub">Aguardando os outros jogadores{progress ? ` (${progress.submitted}/${progress.total})` : ''}…
+          O torneio começa assim que todos terminarem (ou o tempo acabar).</p>
+        {deadline && <MpTimer deadline={deadline} />}
+      </div>
+    );
+
+  if (stage === 'tournament' && watching && yourMatch) {
+    const log = yourMatch.side === 'away' ? mpFlipLog(yourMatch.log) : yourMatch.log;
+    const me = { name: session.user.name, dream: true };
+    const oppInfo = mpTeamInfo(snap, yourMatch.side === 'home'
+      ? findFixtureSide(snap, yourMatch.fixtureId, 'away')
+      : findFixtureSide(snap, yourMatch.fixtureId, 'home'));
+    const round = snap && snap.phase === 'mata-mata' && snap.currentRound
+      ? { id: snap.currentRound.label }
+      : { stage: 'group', label: snap && snap.currentRound ? snap.currentRound.label : 'Fase de grupos' };
+    return (
+      <MatchScreen log={log} me={me} round={round} sfx={sfx}
+        speed={window.CONFIG.MP.SPEED} onSpeedChange={null}
+        onFinish={() => setWatching(false)}
+        onShootout={null} onPenalty={null} pendingPen={null} />
+    );
+  }
+
+  if (stage === 'tournament' && snap)
+    return <MpTournament snap={snap} meId={meId} minute={minute}
+      yourMatch={yourMatch} onWatch={() => setWatching(true)} />;
+
+  if (stage === 'end' && snap)
+    return <MpEnd snap={snap} meId={meId} onExit={leaveAll}
+      onBackToTables={() => setStage('tournament')} />;
+
+  // fallback: conectando…
+  return (
+    <div className="stage narrow screen-fade mp-center">
+      <span className="tok">MULTIPLAYER</span>
+      <h2>Conectando…</h2>
+      {error && <p className="mp-error">{error}</p>}
+      <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
+    </div>
+  );
+}
+
+/* find the teamId on a given side of a fixture/tie in the snapshot */
+function findFixtureSide(snap, fixtureId, side) {
+  if (!snap) return null;
+  for (const g of snap.groups) {
+    const f = g.fixtures.find(x => x.fixtureId === fixtureId);
+    if (f) return side === 'home' ? f.homeId : f.awayId;
+  }
+  for (const r of snap.bracket) {
+    const tie = r.ties.find(x => x.tieId === fixtureId);
+    if (tie) return side === 'home' ? tie.homeId : tie.awayId;
+  }
+  return null;
+}
+
+Object.assign(window, { MultiplayerApp });

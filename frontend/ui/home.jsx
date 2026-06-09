@@ -71,7 +71,7 @@ function FormationSelect({ options, value, onChange }) {
   );
 }
 
-function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo }) {
+function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo, onMultiplayer }) {
   const t = (k, v) => window.I18N.t(k, v);
   const fHint = { '4-3-3': 'fOfensivo', '4-4-2': 'fEquilibrado', '3-5-2': 'fAlas', '4-5-1': 'fCauteloso', '5-3-2': 'fDefensivo', '3-4-3': 'fOusado' };
   const formationOpts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id, hint: t('ui.home.' + (fHint[id] || 'fEquilibrado')) }));
@@ -93,6 +93,11 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
         <button className={`btn ${canResume ? 'btn-ghost' : 'btn-green'}`} style={{ fontSize: 17, padding: '15px 38px' }} onClick={onStart}>
           🎲 {canResume ? t('ui.home.startNew') : t('ui.home.startDraft')}
         </button>
+        {onMultiplayer && (
+          <button className="btn btn-ghost" style={{ fontSize: 15 }} onClick={onMultiplayer}>
+            🌐 Multiplayer Online
+          </button>
+        )}
         {onHowTo && (
           <button className="btn btn-ghost howto-cta" onClick={onHowTo}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"

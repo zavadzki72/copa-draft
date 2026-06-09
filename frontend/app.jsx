@@ -10,6 +10,7 @@ const {
   GameHeader, HomeScreen, DraftScreen, PreMatchScreen, MatchScreen,
   PostMatchScreen, BracketScreen, CampaignEndScreen, PenaltyShootout,
   AlmanaqueReveal, AchievementToast, HowToPlay, InMatchPenalty, GroupStageScreen,
+  MultiplayerApp,
 } = window;
 
 function findPlayer(list, id) { return (list || []).find(p => p.id === id); }
@@ -361,11 +362,16 @@ function App() {
     setCanResume(false);
   }
 
+  // deep link de convite multiplayer (?sala=CODIGO) → entra direto no modo MP
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('sala')) setPhase('mp');
+  }, []);
+
   return (
     <div className="app">
       <GameHeader
-        phase={phase === 'home' ? 'home' : phase === 'draft' ? 'draft' : 'campaign'}
-        hasTeam={hasTeam && phase !== 'home'}
+        phase={phase === 'home' || phase === 'mp' ? 'home' : phase === 'draft' ? 'draft' : 'campaign'}
+        hasTeam={hasTeam && phase !== 'home' && phase !== 'mp'}
         round={['prematch', 'match', 'post'].includes(phase) ? activeRound : null}
         sound={sound} onToggleSound={toggleSound}
         theme={theme} onToggleTheme={toggleTheme}
@@ -376,7 +382,12 @@ function App() {
         <HomeScreen mode={mode} setMode={setMode} formation={formation} setFormation={setFormation}
           canResume={canResume} onResume={resumeRun} profile={profile0}
           onHowTo={() => setShowHowTo(true)}
-          onStart={() => { window.SFX.prime(); reset(); setPhase('draft'); }} />
+          onStart={() => { window.SFX.prime(); reset(); setPhase('draft'); }}
+          onMultiplayer={() => { window.SFX.prime(); setPhase('mp'); }} />
+      )}
+
+      {phase === 'mp' && (
+        <MultiplayerApp sfx={sfx} onExit={() => setPhase('home')} />
       )}
 
       {phase === 'draft' && (

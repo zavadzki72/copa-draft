@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Shared squad pool (single source: data/squads.js -> tools/gen-squads-json.js -> squads.json).
+       Embedded so the engine has no runtime file-path dependency. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\squads.json">
+      <LogicalName>squads.json</LogicalName>
+    </EmbeddedResource>
+    <!-- PT-BR narration (single source: lib/i18n.js -> tools/gen-narration.js).
+         Filename intentionally avoids a `.pt.` token, which MSBuild would treat
+         as a Portuguese-culture (satellite) resource and drop from this assembly. -->
+    <None Remove="Data/narration-pt.json" />
+    <EmbeddedResource Include="Data/narration-pt.json">
+      <LogicalName>narration-pt.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

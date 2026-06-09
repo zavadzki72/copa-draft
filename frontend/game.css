@@ -657,3 +657,41 @@
 .howto-f { font-family:var(--font-mono); font-size:.92em; color:var(--green-bright); }
 .howto-foot { margin-top:18px; display:flex; justify-content:center; }
 @media (max-width: 520px) { .howto-panel { padding:22px 18px 30px; } .howto-overlay { padding:2vh 10px; } }
+
+/* ============================================================
+   MULTIPLAYER ONLINE (PRD_004)
+   ============================================================ */
+.mp-center { display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; padding-top:5vh; }
+.mp-center h2 { margin:0; }
+.mp-center .sub { max-width:520px; }
+.mp-google-btn { min-height:44px; display:flex; justify-content:center; }
+.mp-error { color: var(--loss); font-size:.92rem; }
+.mp-menu { width:100%; max-width:640px; }
+.mp-menu .p { color:var(--fg2); font-size:.9rem; min-height:40px; }
+.mp-join-row { display:flex; gap:8px; }
+.mp-input { flex:1; min-width:0; font-family:var(--font-mono); font-size:1.05rem; letter-spacing:.18em; text-transform:uppercase;
+  background:var(--bg2, rgba(255,255,255,.04)); color:var(--fg); border:1px solid var(--line, rgba(255,255,255,.14));
+  border-radius:var(--r-sm); padding:10px 12px; text-align:center; }
+.mp-foot { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:18px; }
+.mp-hint { text-align:center; color:var(--fg2); margin-top:10px; }
+.mp-invite { margin:14px 0 18px; text-align:center; }
+.mp-code { font-family:var(--font-mono); font-size:2rem; letter-spacing:.35em; color:var(--yellow-ink); margin:6px 0 10px; }
+.mp-players { display:flex; flex-direction:column; gap:6px; }
+.mp-player { display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid var(--line, rgba(255,255,255,.1));
+  border-radius:var(--r-sm); background:rgba(255,255,255,.02); }
+.mp-player.me { border-color: rgba(0,168,89,.45); }
+.mp-avatar { width:26px; height:26px; border-radius:50%; }
+.mp-pname { flex:1; font-weight:600; }
+.mp-presence.ia { color:var(--yellow-ink); font-size:.82rem; }
+.mp-presence.saiu { color:var(--loss); font-size:.82rem; }
+.mp-ready { font-family:var(--font-mono); font-size:.78rem; color:var(--fg2); }
+.mp-ready.on { color:var(--green-bright); }
+.mp-timer { font-family:var(--font-mono); font-size:.95rem; color:var(--yellow-ink); padding:4px 10px;
+  border:1px solid rgba(255,223,0,.25); border-radius:var(--r-sm); background:rgba(255,223,0,.06); }
+.mp-timer.low { color:var(--loss); border-color:rgba(255,80,80,.35); background:rgba(255,80,80,.07); animation: mp-blink 1s infinite; }
+@keyframes mp-blink { 50% { opacity:.55; } }
+.mp-draft-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:14px; flex-wrap:wrap; }
+.mp-yourmatch { margin:12px 0; text-align:center; }
+.mp-group { margin-bottom:8px; }
+.mp-end-hero { display:flex; flex-direction:column; align-items:center; gap:8px; padding:6vh 0 2vh; }
+.mp-end-emoji { font-size:4rem; }

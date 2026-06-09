@@ -1,0 +1,10 @@
+# Contexto do build da API (raiz do repo): só o backend + squads.json.
+# (BuildKit: este arquivo vale só para backend/Dockerfile e tem precedência
+#  sobre o .dockerignore da raiz, que exclui backend/ para a imagem do front.)
+*
+!squads.json
+!backend/
+backend/**/bin
+backend/**/obj
+backend/CopaDraft.Engine.Tests
+backend/.gitignore

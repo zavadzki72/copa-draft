@@ -152,4 +152,15 @@ window.CONFIG = {
   /* ---------- Theme ---------- */
   THEMES: ['dark', 'light'],   // supported color themes
   DEFAULT_THEME: 'dark',       // used only when the system preference is unknown
+
+  /* ---------- Multiplayer Online (PRD_004) ----------
+     Server-authoritative mode: lobby, accounts (Google) and the tournament run
+     on the .NET backend. The client only displays what the server streams. */
+  MP: {
+    API_BASE: '',                 // '' = same origin (nginx proxy); dev: 'http://localhost:5080'
+    GOOGLE_CLIENT_ID: '',         // OAuth client id (Google Cloud Console) — required for login
+    DRAFT_TIMER_SECONDS: 180,     // display only — the server enforces its own deadline
+    SPEED: 'rapido',              // fixed ticker pace in MP (server clock is the authority)
+    MAX_PLAYERS: 8,               // display only — server enforces via MpOptions
+  },
 };

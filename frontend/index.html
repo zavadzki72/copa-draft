@@ -55,6 +55,13 @@
   <script src="lib/sound.js"></script>
   <script src="lib/sharecard.js"></script>
 
+  <!-- multiplayer online (PRD_004): SignalR + Google Identity + serviços MP -->
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js" integrity="sha384-mU1xC5yC2LldSW74Rj1Ax8wPiLw/28V5eh51uKJMlBbRVsOtUYd4xyzNsgIAJARB" crossorigin="anonymous"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="lib/mp-auth.js"></script>
+  <script src="lib/mp-api.js"></script>
+  <script src="lib/mp-realtime.js"></script>
+
   <!-- React + Babel -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
@@ -71,6 +78,7 @@
   <script type="text/babel" src="ui/modal.jsx"></script>
   <script type="text/babel" src="ui/post.jsx"></script>
   <script type="text/babel" src="ui/group.jsx"></script>
+  <script type="text/babel" src="ui/mp.jsx"></script>
   <script type="text/babel" src="app.jsx"></script>
 </body>
 </html>
