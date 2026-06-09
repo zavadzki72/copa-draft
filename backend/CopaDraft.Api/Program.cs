@@ -7,6 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 IConfiguration config = builder.Configuration;
 
+// fail-fast: em produção a chave JWT é obrigatória — sem ela o fallback de
+// desenvolvimento (público no repositório) assinaria tokens forjáveis.
+if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(config["Jwt:Key"]))
+    throw new InvalidOperationException(
+        "Jwt:Key não configurado. Defina JWT_KEY (env Jwt__Key) antes de subir em produção.");
+
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(config.GetConnectionString("Default")
         ?? "Host=localhost;Database=copadraft;Username=copadraft;Password=copadraft"));
@@ -20,6 +26,7 @@ builder.Services.AddScoped<CopaDraft.Api.Services.DraftService>();
 builder.Services.AddSingleton<CopaDraft.Api.Services.PresenceTracker>();
 builder.Services.AddSingleton<CopaDraft.Api.Services.TournamentOrchestrator>();
 builder.Services.AddHostedService<CopaDraft.Api.Services.DraftDeadlineWorker>();
+builder.Services.AddHostedService<CopaDraft.Api.Services.TournamentResumeWorker>();
 builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, CopaDraft.Api.Auth.SubUserIdProvider>();
 builder.Services.Configure<CopaDraft.Api.Services.MpOptions>(
     config.GetSection(CopaDraft.Api.Services.MpOptions.Section));

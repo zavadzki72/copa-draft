@@ -160,7 +160,8 @@ window.CONFIG = {
     API_BASE: '',                 // '' = same origin (nginx proxy); dev: 'http://localhost:5080'
     GOOGLE_CLIENT_ID: '',         // OAuth client id (Google Cloud Console) — required for login
     DRAFT_TIMER_SECONDS: 180,     // display only — the server enforces its own deadline
-    SPEED: 'rapido',              // fixed ticker pace in MP (server clock is the authority)
+    PACE_MS_PER_MINUTE: 250,      // fallback do ritmo do ticker; o valor vivo vem do servidor
+                                  // (RoundStarted.paceMsPerMinute) e DEVE espelhar MpOptions
     MAX_PLAYERS: 8,               // display only — server enforces via MpOptions
   },
 };

@@ -92,11 +92,12 @@ public class LobbyHub(
         }
     }
 
-    /// <summary>Resync after (re)connecting mid-tournament: snapshot + your match.</summary>
+    /// <summary>Resync after (re)connecting mid-tournament: snapshot + your match.
+    /// Falls back to the persisted snapshot for finished/evicted tournaments.</summary>
     public async Task GetTournament(string code)
     {
         code = code.ToUpperInvariant();
-        TournamentSnapshotDto? snapshot = orchestrator.Snapshot(code);
+        TournamentSnapshotDto? snapshot = await orchestrator.SnapshotOrPersistedAsync(code);
         if (snapshot is not null)
             await Clients.Caller.SendAsync(TournamentOrchestrator.TournamentStateEvent, snapshot);
         YourMatchDto? mine = orchestrator.YourMatch(code, UserId);

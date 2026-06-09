@@ -53,13 +53,40 @@ public sealed class TournamentOrchestrator(
     public TournamentSnapshotDto? Snapshot(string code)
         => _running.TryGetValue(code, out RunningTournament? rt) ? BuildSnapshot(rt) : null;
 
+    /// <summary>Snapshot da memória ou, para torneios encerrados/evictados (ou
+    /// após restart), do TournamentRecord persistido.</summary>
+    public async Task<TournamentSnapshotDto?> SnapshotOrPersistedAsync(string code, CancellationToken ct = default)
+    {
+        code = code.ToUpperInvariant();
+        TournamentSnapshotDto? live = Snapshot(code);
+        if (live is not null) return live;
+
+        using IServiceScope scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Room? room = await db.Rooms.AsNoTracking().SingleOrDefaultAsync(r => r.Code == code, ct);
+        if (room is null) return null;
+        TournamentRecord? rec = await db.Tournaments.AsNoTracking().SingleOrDefaultAsync(x => x.RoomId == room.Id, ct);
+        if (rec is null) return null;
+        try { return JsonSerializer.Deserialize<TournamentSnapshotDto>(rec.StateJson); }
+        catch (JsonException) { return null; }
+    }
+
     public YourMatchDto? YourMatch(string code, Guid userId)
         => _running.TryGetValue(code, out RunningTournament? rt)
            && rt.YourMatches.TryGetValue(userId, out YourMatchDto? m) ? m : null;
 
     /// <summary>Builds and launches the tournament for a room whose draft is
     /// complete. Idempotent — only the first call wins.</summary>
-    public async Task<bool> TryStartAsync(string code, CancellationToken ct = default)
+    public Task<bool> TryStartAsync(string code, CancellationToken ct = default)
+        => StartCoreAsync(code, resume: false, ct);
+
+    /// <summary>Retoma um torneio interrompido por restart da API: a sala já
+    /// está em Groups/Knockout com todos os times persistidos. Determinístico —
+    /// a re-simulação reproduz exatamente o mesmo torneio (mesma seed).</summary>
+    public Task<bool> ResumeAsync(string code, CancellationToken ct = default)
+        => StartCoreAsync(code, resume: true, ct);
+
+    private async Task<bool> StartCoreAsync(string code, bool resume, CancellationToken ct)
     {
         code = code.ToUpperInvariant();
         using IServiceScope scope = scopes.CreateScope();
@@ -70,7 +97,10 @@ public sealed class TournamentOrchestrator(
             .SingleOrDefaultAsync(r => r.Code == code, ct)
             ?? throw new RoomServiceException("Esta sala não está disponível.");
 
-        if (room.State != RoomState.Draft) return false;
+        bool stateOk = resume
+            ? room.State is RoomState.Groups or RoomState.Knockout
+            : room.State == RoomState.Draft;
+        if (!stateOk) return false;
         if (room.Participants.Any(p => p.Team is null)) return false;
 
         // humans in deterministic join order
@@ -91,12 +121,21 @@ public sealed class TournamentOrchestrator(
         if (!_running.TryAdd(code, rt)) return false;
 
         room.State = RoomState.Groups;
-        db.Tournaments.Add(new TournamentRecord
+        TournamentRecord? rec = await db.Tournaments.SingleOrDefaultAsync(x => x.RoomId == room.Id, ct);
+        if (rec is null)
         {
-            Id = Guid.NewGuid(), RoomId = room.Id,
-            StateJson = JsonSerializer.Serialize(BuildSnapshot(rt)),
-            UpdatedAt = DateTimeOffset.UtcNow,
-        });
+            db.Tournaments.Add(new TournamentRecord
+            {
+                Id = Guid.NewGuid(), RoomId = room.Id,
+                StateJson = JsonSerializer.Serialize(BuildSnapshot(rt)),
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+        }
+        else
+        {
+            rec.StateJson = JsonSerializer.Serialize(BuildSnapshot(rt));
+            rec.UpdatedAt = DateTimeOffset.UtcNow;
+        }
         await db.SaveChangesAsync(ct);
 
         _ = Task.Run(() => RunSafelyAsync(code, rt), CancellationToken.None);
@@ -105,10 +144,17 @@ public sealed class TournamentOrchestrator(
 
     private async Task RunSafelyAsync(string code, RunningTournament rt)
     {
-        try { await RunAsync(code, rt, rt.Cts.Token); }
+        try
+        {
+            await RunAsync(code, rt, rt.Cts.Token);
+            // encerrou: o snapshot final está persistido (SnapshotOrPersistedAsync
+            // cobre resyncs tardios) — libera a memória da sala.
+            _running.TryRemove(code, out _);
+        }
         catch (OperationCanceledException) { /* sala encerrada */ }
         catch (Exception e)
         {
+            // erro fatal: mantém a entrada para diagnóstico via LastError.
             rt.Error = e.ToString();
             Console.Error.WriteLine($"[orchestrator] sala {code}: {e}");
         }

@@ -251,7 +251,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 }
 
 /* ---------- LIVE MATCH TICKER ---------- */
-function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onShootout, onPenalty, pendingPen }) {
+function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onShootout, onPenalty, pendingPen, fixedPace }) {
   const beep = sfx || (() => {});
   const C = window.CONFIG;
   const t = (k, v) => window.I18N.t(k, v);
@@ -261,8 +261,12 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
   const TICK = 90;
   // pacing only — the result is fixed in `log`. Speed is changeable mid-match;
   // stepRef is read each tick so a change takes effect without resetting the clock.
+  // `fixedPace` (ms per simulated minute) pins the pace to an external clock —
+  // multiplayer uses the SERVER's canonical pace and hides the speed selector.
   const [localSpeed, setLocalSpeed] = useState(speed && SP[speed] ? speed : C.MATCH_SPEED_DEFAULT);
-  const durationMs = (SP[localSpeed] || SP[C.MATCH_SPEED_DEFAULT]).durationMs;
+  const durationMs = fixedPace
+    ? fixedPace * maxMinute
+    : (SP[localSpeed] || SP[C.MATCH_SPEED_DEFAULT]).durationMs;
   const stepRef = useRef(0);
   stepRef.current = maxMinute / (durationMs / TICK);
   useEffect(() => { if (speed && SP[speed]) setLocalSpeed(speed); }, [speed]); // eslint-disable-line
@@ -380,7 +384,7 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
           {window.roundText(round, 'label')} · {me.name}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {!done && (
+          {!done && !fixedPace && (
             <div className="speed-mini" role="group" aria-label={t('ui.home.speedLabel')}>
               {Object.keys(SP).map(id => (
                 <button key={id} className={localSpeed === id ? 'on' : ''}
