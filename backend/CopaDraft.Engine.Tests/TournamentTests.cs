@@ -14,13 +14,21 @@ public class TournamentTests
     private static List<TeamEntry> Humans(int n) => Enumerable.Range(0, n).Select(Human).ToList();
 
     [Theory]
-    [InlineData(2, 2)]
-    [InlineData(3, 4)]
-    [InlineData(4, 4)]
-    [InlineData(5, 8)]
-    [InlineData(8, 8)]
-    public void Group_Count_Scales_With_Humans(int humans, int expectedGroups)
-        => Assert.Equal(expectedGroups, TournamentGenerator.GroupCountFor(humans));
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(8)]
+    public void Always_Full_Cup_Eight_Groups(int humans)
+    {
+        GeneratedTournament t = TournamentGenerator.Generate(Humans(humans), 42, GameConfig.Default);
+        Assert.Equal(TournamentGenerator.GroupCount, t.Groups.Count);
+        Assert.Equal(32, t.Groups.Sum(g => g.Entries.Count));
+    }
+
+    [Fact]
+    public void More_Than_Eight_Humans_Rejected()
+        => Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TournamentGenerator.Generate(Humans(9), 1, GameConfig.Default));
 
     [Theory]
     [InlineData(2)]
@@ -73,15 +81,11 @@ public class TournamentTests
     }
 
     [Fact]
-    public void Knockout_Rounds_Match_Qualifier_Count()
+    public void Knockout_Always_Runs_Oitavas_To_Final()
     {
-        // 2 groups -> 4 qualifiers -> semi+final
-        Assert.Equal(new[] { "semi", "final" },
+        // copa completa: 8 grupos -> 16 classificados -> oitavas..final, sempre
+        Assert.Equal(new[] { "oitavas", "quartas", "semi", "final" },
             TournamentGenerator.Generate(Humans(2), 1, GameConfig.Default).KnockoutRounds);
-        // 4 groups -> 8 -> quartas..final
-        Assert.Equal(new[] { "quartas", "semi", "final" },
-            TournamentGenerator.Generate(Humans(4), 1, GameConfig.Default).KnockoutRounds);
-        // 8 groups -> 16 -> oitavas..final
         Assert.Equal(new[] { "oitavas", "quartas", "semi", "final" },
             TournamentGenerator.Generate(Humans(8), 1, GameConfig.Default).KnockoutRounds);
     }
@@ -90,17 +94,18 @@ public class TournamentTests
     public void First_Knockout_Round_Cross_Pairs_Groups()
     {
         GeneratedTournament t = TournamentGenerator.Generate(Humans(2), 5, GameConfig.Default);
-        var qualified = new Dictionary<int, IReadOnlyList<string>>
-        {
-            [0] = new[] { "A1", "A2" }, [1] = new[] { "B1", "B2" },
-        };
+        var qualified = new Dictionary<int, IReadOnlyList<string>>();
+        for (int g = 0; g < t.Groups.Count; g++)
+            qualified[g] = new[] { $"G{g}-1", $"G{g}-2" };
         List<KnockoutTie> ties = TournamentGenerator.BuildFirstKnockoutRound(t, qualified, GameConfig.Default);
 
-        Assert.Equal(2, ties.Count);
-        Assert.Equal(("A1", "B2"), (ties[0].HomeId, ties[0].AwayId));
-        Assert.Equal(("B1", "A2"), (ties[1].HomeId, ties[1].AwayId));
-        // same-group teams can only meet in the final
-        Assert.Equal("semi", ties[0].RoundId);
+        Assert.Equal(8, ties.Count);
+        Assert.All(ties, tie => Assert.Equal("oitavas", tie.RoundId));
+        // cruzamento clássico: 1º do grupo 2k × 2º do 2k+1 (e o espelho na outra metade)
+        Assert.Equal(("G0-1", "G1-2"), (ties[0].HomeId, ties[0].AwayId));
+        Assert.Equal(("G1-1", "G0-2"), (ties[4].HomeId, ties[4].AwayId));
+        // mesmos-grupo nunca se cruzam nas oitavas
+        Assert.All(ties, tie => Assert.NotEqual(tie.HomeId[..2], tie.AwayId[..2]));
     }
 
     [Fact]

@@ -92,6 +92,30 @@ public class LobbyHub(
         }
     }
 
+    public const string WatchMatchEvent = "WatchMatch";
+
+    /// <summary>Modo espectador ("acompanhar campeonato"): devolve ao chamador o
+    /// log de uma partida da rodada corrente — usado por eliminados para seguir
+    /// um time humano ainda vivo.</summary>
+    public async Task WatchFixture(string code, string fixtureId)
+    {
+        code = code.ToUpperInvariant();
+        (string HomeId, string AwayId, Engine.Models.MatchLog Log)? entry =
+            orchestrator.GetFixtureLog(code, fixtureId);
+        if (entry is null)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, "Essa partida não está em andamento.");
+            return;
+        }
+        await Clients.Caller.SendAsync(WatchMatchEvent, new
+        {
+            fixtureId,
+            homeId = entry.Value.HomeId,
+            awayId = entry.Value.AwayId,
+            log = entry.Value.Log,
+        });
+    }
+
     /// <summary>Resync after (re)connecting mid-tournament: snapshot + your match.
     /// Falls back to the persisted snapshot for finished/evicted tournaments.</summary>
     public async Task GetTournament(string code)

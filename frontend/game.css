@@ -697,3 +697,7 @@
 .mp-end-emoji { font-size:4rem; }
 .mp-guest-row { display:flex; gap:8px; width:100%; max-width:440px; }
 .mp-input-name { letter-spacing:normal; text-transform:none; text-align:left; font-family:var(--font-sans, inherit); }
+.mp-elim { margin:12px 0; border-color: rgba(255,80,80,.35); }
+.mp-elim .lab { color: var(--loss); }
+.mp-follow-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.mp-link { color: var(--yellow-ink); cursor:pointer; text-decoration:underline; }

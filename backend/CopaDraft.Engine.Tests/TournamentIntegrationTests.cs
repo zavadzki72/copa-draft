@@ -94,11 +94,12 @@ public class TournamentIntegrationTests : IClassFixture<ApiTestHost>
         Assert.False(string.IsNullOrEmpty(champ.GetProperty("championTeamId").GetString()));
 
         JsonElement snapshot = await WaitFor(lastSnapshot, "snapshot final");
-        Assert.True(minuteTicks >= 90 * 4, $"esperava ticks de 4+ rodadas, veio {minuteTicks}");
+        // copa completa: 3 rodadas de grupos + oitavas/quartas/semi/final = 7 relógios
+        Assert.True(minuteTicks >= 90 * 7, $"esperava ticks de 7 rodadas, veio {minuteTicks}");
 
-        // 2 humanos -> 2 grupos, cada um com no máx. 1 humano; semi+final no bracket
+        // sempre 8 grupos (32 times), cada um com no máx. 1 humano
         JsonElement groups = snapshot.GetProperty("groups");
-        Assert.Equal(2, groups.GetArrayLength());
+        Assert.Equal(8, groups.GetArrayLength());
         foreach (JsonElement g in groups.EnumerateArray())
         {
             int humans = g.GetProperty("teams").EnumerateArray().Count(t => t.GetProperty("isHuman").GetBoolean());
@@ -108,8 +109,10 @@ public class TournamentIntegrationTests : IClassFixture<ApiTestHost>
                 Assert.Equal(3, row.GetProperty("j").GetInt32());
         }
         JsonElement bracket = snapshot.GetProperty("bracket");
-        Assert.Equal(2, bracket.GetArrayLength()); // semi, final
-        Assert.Equal("final", bracket[1].GetProperty("roundId").GetString());
-        Assert.True(bracket[1].GetProperty("ties")[0].GetProperty("played").GetBoolean());
+        Assert.Equal(4, bracket.GetArrayLength()); // oitavas, quartas, semi, final
+        Assert.Equal("oitavas", bracket[0].GetProperty("roundId").GetString());
+        Assert.Equal(8, bracket[0].GetProperty("ties").GetArrayLength());
+        Assert.Equal("final", bracket[3].GetProperty("roundId").GetString());
+        Assert.True(bracket[3].GetProperty("ties")[0].GetProperty("played").GetBoolean());
     }
 }

@@ -19,7 +19,8 @@ namespace CopaDraft.Api.Services;
 /// bracket — live and coherent for everyone.
 /// </summary>
 public sealed class TournamentOrchestrator(
-    IServiceScopeFactory scopes, IHubContext<LobbyHub> hub, IOptions<MpOptions> mp)
+    IServiceScopeFactory scopes, IHubContext<LobbyHub> hub, IOptions<MpOptions> mp,
+    ILogger<TournamentOrchestrator> logger)
 {
     public const string TournamentStateEvent = "TournamentState";
     public const string RoundStartedEvent = "RoundStarted";
@@ -39,6 +40,8 @@ public sealed class TournamentOrchestrator(
         public Dictionary<string, (Score Score, Score? Pens, string? WinnerId, bool Played)> TieResults { get; } = new();
         public RoundInfoDto? CurrentRound { get; set; }
         public Dictionary<Guid, YourMatchDto> YourMatches { get; } = new();
+        /// <summary>Logs da rodada corrente (espectador: "acompanhar campeonato").</summary>
+        public Dictionary<string, (string HomeId, string AwayId, MatchLog Log)> CurrentRoundLogs { get; } = new();
         public string? ChampionTeamId { get; set; }
         public CancellationTokenSource Cts { get; } = new();
         public string? Error { get; set; }
@@ -74,6 +77,12 @@ public sealed class TournamentOrchestrator(
     public YourMatchDto? YourMatch(string code, Guid userId)
         => _running.TryGetValue(code, out RunningTournament? rt)
            && rt.YourMatches.TryGetValue(userId, out YourMatchDto? m) ? m : null;
+
+    /// <summary>Log de uma partida da rodada corrente (modo espectador).</summary>
+    public (string HomeId, string AwayId, MatchLog Log)? GetFixtureLog(string code, string fixtureId)
+        => _running.TryGetValue(code.ToUpperInvariant(), out RunningTournament? rt)
+           && rt.CurrentRoundLogs.TryGetValue(fixtureId, out (string, string, MatchLog) entry)
+            ? entry : null;
 
     /// <summary>Builds and launches the tournament for a room whose draft is
     /// complete. Idempotent — only the first call wins.</summary>
@@ -138,6 +147,8 @@ public sealed class TournamentOrchestrator(
         }
         await db.SaveChangesAsync(ct);
 
+        logger.LogInformation("[{Code}] torneio {Mode}: {Humans} humanos, {Groups} grupos, seed {Seed}",
+            code, resume ? "RETOMADO" : "iniciado", humans.Count, t.Groups.Count, room.Seed);
         _ = Task.Run(() => RunSafelyAsync(code, rt), CancellationToken.None);
         return true;
     }
@@ -150,13 +161,15 @@ public sealed class TournamentOrchestrator(
             // encerrou: o snapshot final está persistido (SnapshotOrPersistedAsync
             // cobre resyncs tardios) — libera a memória da sala.
             _running.TryRemove(code, out _);
+            logger.LogInformation("[{Code}] campeão: {Champion} — sala evictada da memória",
+                code, rt.ChampionTeamId);
         }
         catch (OperationCanceledException) { /* sala encerrada */ }
         catch (Exception e)
         {
             // erro fatal: mantém a entrada para diagnóstico via LastError.
             rt.Error = e.ToString();
-            Console.Error.WriteLine($"[orchestrator] sala {code}: {e}");
+            logger.LogError(e, "[{Code}] torneio abortado por erro fatal", code);
         }
     }
 
@@ -257,6 +270,14 @@ public sealed class TournamentOrchestrator(
 
         rt.CurrentRound = new RoundInfoDto(kind, label, maxMinute, mp.Value.PaceMsPerMinute,
             matches.Select(m => new FixtureRefDto(m.FixtureId, m.HomeId, m.AwayId, LastMinute(m.Log))).ToList());
+
+        // spectator pool: every match of the round is watchable
+        rt.CurrentRoundLogs.Clear();
+        foreach ((string fxId, string homeId, string awayId, MatchLog fxLog) in matches)
+            rt.CurrentRoundLogs[fxId] = (homeId, awayId, fxLog);
+
+        logger.LogInformation("[{Code}] rodada {Label} ({Kind}): {N} partidas, até {Max}'",
+            code, label, kind, matches.Count, maxMinute);
 
         // private: each human gets their own full log for the ticker
         rt.YourMatches.Clear();

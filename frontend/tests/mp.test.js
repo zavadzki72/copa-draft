@@ -91,6 +91,41 @@ ok('findFixtureSide: acha em grupo', MPLOG.findFixtureSide(snap, 'gA-r0-0', 'awa
 ok('findFixtureSide: acha no bracket', MPLOG.findFixtureSide(snap, 'final-0', 'home') === 'h:u1');
 ok('findFixtureSide: desconhecido -> null', MPLOG.findFixtureSide(snap, 'nope', 'home') === null);
 
+// ============ mp-log: fixtureOfTeam / eliminationInfo ============
+const roundInfo = { fixtures: [{ fixtureId: 'oitavas-0', homeId: 'h:u1', awayId: 'ai:x' }] };
+ok('fixtureOfTeam: acha a partida do time na rodada', MPLOG.fixtureOfTeam(roundInfo, 'h:u1').fixtureId === 'oitavas-0');
+ok('fixtureOfTeam: fora da rodada -> null', MPLOG.fixtureOfTeam(roundInfo, 'h:u2') === null
+  && MPLOG.fixtureOfTeam(null, 'h:u1') === null);
+
+const elimSnap = {
+  groups: [
+    { label: 'A', teams: [{ id: 'h:u1', name: 'Zava', isHuman: true }, { id: 'ai:a', name: 'IA A', isHuman: false }], fixtures: [] },
+    { label: 'B', teams: [{ id: 'h:u2', name: 'Amigo', isHuman: true }, { id: 'ai:b', name: 'IA B', isHuman: false }], fixtures: [] },
+    { label: 'C', teams: [{ id: 'h:u3', name: 'Outra', isHuman: true }], fixtures: [] },
+  ],
+  bracket: [],
+  championTeamId: null,
+};
+ok('elim: grupos em andamento -> ninguém eliminado', MPLOG.eliminationInfo(elimSnap, 'h:u1').eliminated === false);
+
+// bracket começou: u1 ficou fora (caiu nos grupos); u2 e u3 avançaram
+elimSnap.bracket = [{
+  roundId: 'oitavas',
+  ties: [
+    { tieId: 'o0', homeId: 'h:u2', awayId: 'ai:a', played: true, winnerId: 'h:u2' },
+    { tieId: 'o1', homeId: 'h:u3', awayId: 'ai:b', played: true, winnerId: 'ai:b' },
+  ],
+}];
+let info = MPLOG.eliminationInfo(elimSnap, 'h:u1');
+ok('elim: fora do bracket -> eliminado nos grupos', info.eliminated && info.stage === 'grupos');
+ok('elim: humanos vivos exclui eliminados e a mim', info.aliveHumans.length === 1 && info.aliveHumans[0].id === 'h:u2');
+
+info = MPLOG.eliminationInfo(elimSnap, 'h:u3');
+ok('elim: perdeu tie jogado -> eliminado na fase certa', info.eliminated && info.stage === 'oitavas');
+
+info = MPLOG.eliminationInfo(elimSnap, 'h:u2');
+ok('elim: vencedor segue vivo', info.eliminated === false);
+
 // ============ mp-auth: sessão ============
 (async () => {
   ok('auth: começa deslogado', !MPAUTH.isLoggedIn());

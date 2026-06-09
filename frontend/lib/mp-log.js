@@ -53,5 +53,47 @@
     return null;
   }
 
-  window.MPLOG = { flipLog, teamInfo, findFixtureSide };
+  /* the current-round fixture a team is playing (or null) */
+  function fixtureOfTeam(currentRound, teamId) {
+    if (!currentRound || !teamId) return null;
+    return currentRound.fixtures.find(f => f.homeId === teamId || f.awayId === teamId) || null;
+  }
+
+  /* elimination status of `myTeamId` + remaining HUMAN teams (for the
+     "acompanhar campeonato" picker). Stage: 'grupos' | roundId do mata-mata. */
+  function eliminationInfo(snap, myTeamId) {
+    const humans = [];
+    if (snap) {
+      for (const g of snap.groups)
+        for (const t of g.teams)
+          if (t.isHuman) humans.push({ id: t.id, name: t.name });
+    }
+    const none = { eliminated: false, stage: null, aliveHumans: [] };
+    if (!snap || !snap.bracket.length) return none; // grupos em andamento: ninguém caiu ainda
+
+    const inTie = (tie, id) => tie.homeId === id || tie.awayId === id;
+    const firstRound = snap.bracket[0];
+    const alive = new Set(firstRound.ties.flatMap(t => [t.homeId, t.awayId]));
+    for (const round of snap.bracket)
+      for (const tie of round.ties)
+        if (tie.played && tie.winnerId) {
+          alive.delete(tie.homeId === tie.winnerId ? tie.awayId : tie.homeId);
+        }
+
+    let eliminated = false, stage = null;
+    if (!firstRound.ties.some(t => inTie(t, myTeamId))) {
+      eliminated = true; stage = 'grupos';
+    } else if (!alive.has(myTeamId)) {
+      eliminated = true;
+      for (const round of snap.bracket)
+        for (const tie of round.ties)
+          if (inTie(tie, myTeamId) && tie.played && tie.winnerId !== myTeamId) stage = round.roundId;
+    }
+    if (snap.championTeamId && snap.championTeamId !== myTeamId) eliminated = true;
+
+    const aliveHumans = humans.filter(h => h.id !== myTeamId && alive.has(h.id));
+    return { eliminated, stage, aliveHumans };
+  }
+
+  window.MPLOG = { flipLog, teamInfo, findFixtureSide, fixtureOfTeam, eliminationInfo };
 })();

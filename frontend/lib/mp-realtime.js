@@ -6,7 +6,7 @@
 (function () {
   const EVENTS = [
     'RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'LobbyError',
-    'TournamentState', 'RoundStarted', 'YourMatch', 'MinuteTick',
+    'TournamentState', 'RoundStarted', 'YourMatch', 'WatchMatch', 'MinuteTick',
     'MatchFinished', 'TournamentFinished',
   ];
 

@@ -54,23 +54,17 @@ public sealed class GeneratedTournament
 }
 
 /// <summary>
-/// Builds a room tournament: humans seeded into DIFFERENT groups, remaining
-/// slots filled with AI squads (group-phase strength pool), round-robin
-/// fixtures per group, and a cross-pair bracket where same-group teams (and
-/// thus humans) can only meet from the knockout onward. Deterministic by seed.
+/// Builds a room tournament: a FULL World Cup format — always 8 groups of 4
+/// (32 teams, knockout oitavas→final). Humans are seeded into DIFFERENT
+/// groups, every remaining slot is an AI squad (group-phase strength pool),
+/// and the cross-pair bracket means same-group teams (and thus humans) can
+/// only re-meet as late as possible. Deterministic by seed.
 /// </summary>
 public static class TournamentGenerator
 {
-    /// <summary>Group counts that produce a clean knockout (2×G qualifiers, power of two).</summary>
-    private static readonly int[] ValidGroupCounts = { 2, 4, 8 };
-
-    public static int GroupCountFor(int humanCount)
-    {
-        foreach (int g in ValidGroupCounts)
-            if (g >= humanCount) return g;
-        throw new ArgumentOutOfRangeException(nameof(humanCount),
-            $"Sala suporta no máximo {ValidGroupCounts[^1]} jogadores.");
-    }
+    /// <summary>Copa completa: sempre 8 grupos (32 times, oitavas→final).
+    /// Também é o teto de humanos por sala (1 por grupo).</summary>
+    public const int GroupCount = 8;
 
     /// <param name="humans">Human entries in deterministic order (join order).</param>
     public static GeneratedTournament Generate(
@@ -78,10 +72,13 @@ public static class TournamentGenerator
     {
         if (humans.Count < 2)
             throw new ArgumentException("Torneio exige pelo menos 2 jogadores.", nameof(humans));
+        if (humans.Count > GroupCount)
+            throw new ArgumentOutOfRangeException(nameof(humans),
+                $"Sala suporta no máximo {GroupCount} jogadores.");
         pool ??= SquadRepository.All;
 
         var rng = new Rng(seed);
-        int groupCount = GroupCountFor(humans.Count);
+        int groupCount = GroupCount;
         int aiNeeded = groupCount * c.GROUP_SIZE - humans.Count;
 
         // AI fill: one 'grupos'-phase draw per empty slot (distinct squads)
