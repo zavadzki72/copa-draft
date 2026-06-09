@@ -123,7 +123,7 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onTogg
   return (
     <header className="ghdr">
       <div className="ghdr-in">
-        <span className="wm"><b>{'{'}</b>copa<b>{'}'}</b> draft</span>
+        <img className="wm-logo" src={theme === 'light' ? 'images/logo_light.png' : 'images/logo.png'} alt="Copa Draft" />
         <div className="crumbs">
           {phase === 'campaign' ? (
             <span className="campaign-tag"><Crest className="cr-inline" /> {t('team.name')}

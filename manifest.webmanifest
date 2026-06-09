@@ -1,0 +1,22 @@
+{
+  "name": "Copa Draft",
+  "short_name": "Copa Draft",
+  "description": "Monte o time dos sonhos e ganhe a Copa do Mundo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D120E",
+  "theme_color": "#0D120E",
+  "icons": [
+    {
+      "src": "images/favicon/favicon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "images/favicon/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

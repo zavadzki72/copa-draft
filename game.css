@@ -15,8 +15,7 @@
 /* ---------- compact game header ---------- */
 .ghdr { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: blur(18px); border-bottom: 1px solid var(--hairline); }
 .ghdr-in { max-width: 1000px; margin: 0 auto; padding: 0 20px; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.ghdr .wm { font-family: var(--font-mono); font-weight: 700; font-size: 20px; white-space: nowrap; }
-.ghdr .wm b { color: var(--green-bright); margin: 0 3px; }
+.ghdr .wm-logo { height: 30px; width: auto; display: block; flex-shrink: 0; }
 .ghdr .crumbs { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 13px; color: var(--fg3); flex-wrap: nowrap; white-space: nowrap; flex-shrink: 0; }
 /* progress stepper (não é clicável — indica o andamento do jogo) */
 .psteps { display: flex; align-items: center; gap: 8px; cursor: default; }
