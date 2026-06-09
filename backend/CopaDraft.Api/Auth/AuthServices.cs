@@ -33,6 +33,10 @@ public sealed class GoogleTokenValidator(IConfiguration config) : IGoogleTokenVa
 /// <summary>Upserts the user from a Google identity and issues the app JWT.</summary>
 public sealed class AuthService(AppDbContext db, IGoogleTokenValidator google, IConfiguration config)
 {
+    /// <summary>GoogleSub prefix that marks ephemeral guest accounts.</summary>
+    public const string GuestSubPrefix = "guest:";
+    public const string GuestClaim = "guest";
+
     public async Task<(string Token, User User)> LoginWithGoogleAsync(string idToken, CancellationToken ct = default)
     {
         GoogleIdentity id = await google.ValidateAsync(idToken, ct);
@@ -58,19 +62,45 @@ public sealed class AuthService(AppDbContext db, IGoogleTokenValidator google, I
         return (IssueJwt(user), user);
     }
 
+    /// <summary>Cria um convidado efêmero (só apelido — sem conta Google) e emite
+    /// o mesmo JWT, marcado com a claim "guest". Convidados entram em salas
+    /// existentes; criar sala continua exigindo login Google.</summary>
+    public async Task<(string Token, User User)> LoginAsGuestAsync(string name, CancellationToken ct = default)
+    {
+        name = (name ?? string.Empty).Trim();
+        if (name.Length is < 2 or > 30)
+            throw new ArgumentException("O nome precisa ter entre 2 e 30 caracteres.", nameof(name));
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            GoogleSub = GuestSubPrefix + Guid.NewGuid().ToString("N"),
+            Name = name,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+
+        return (IssueJwt(user), user);
+    }
+
+    public static bool IsGuest(User user) => user.GoogleSub.StartsWith(GuestSubPrefix, StringComparison.Ordinal);
+
     public string IssueJwt(User user)
     {
         SymmetricSecurityKey key = JwtOptions.SigningKey(config);
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new("name", user.Name),
+            new("avatar", user.AvatarUrl ?? string.Empty),
+        };
+        if (IsGuest(user)) claims.Add(new Claim(GuestClaim, "1"));
         var token = new JwtSecurityToken(
             issuer: JwtOptions.Issuer(config),
             audience: JwtOptions.Issuer(config),
-            claims: new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim("name", user.Name),
-                new Claim("avatar", user.AvatarUrl ?? string.Empty),
-            },
+            claims: claims,
             expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);

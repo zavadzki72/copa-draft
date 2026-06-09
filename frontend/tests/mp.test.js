@@ -124,6 +124,18 @@ ok('findFixtureSide: desconhecido -> null', MPLOG.findFixtureSide(snap, 'nope', 
   try { await MPAPI.getRoom('XYZ999'); } catch (e) { threw = e.message; }
   ok('api: 401 desloga e avisa', !MPAUTH.isLoggedIn() && threw.includes('Sessão expirada'));
 
+  // ============ convidado ============
+  sb.fetchCalls.length = 0;
+  sb.fetchResponse = { ok: true, status: 200, json: async () => ({ token: 'jwt-guest', user: { id: 'g1', name: 'Maria', guest: true } }) };
+  await MPAUTH.loginAsGuest('Maria');
+  ok('guest: login por apelido chama /api/auth/guest', sb.fetchCalls[0].url.endsWith('/api/auth/guest')
+    && JSON.parse(sb.fetchCalls[0].opts.body).name === 'Maria');
+  ok('guest: sessão marcada como convidado', MPAUTH.isLoggedIn() && MPAUTH.isGuest() && MPAUTH.user().name === 'Maria');
+
+  sb.fetchResponse = { ok: false, status: 400, json: async () => ({ error: 'O nome precisa ter entre 2 e 30 caracteres.' }) };
+  try { await MPAUTH.loginAsGuest('a'); } catch (e) { threw = e.message; }
+  ok('guest: nome inválido vira erro amigável', threw.includes('entre 2 e 30'));
+
   // ============ mp-realtime ============
   const handlers = {};
   const fakeConn = {

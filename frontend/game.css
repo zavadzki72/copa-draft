@@ -695,3 +695,5 @@
 .mp-group { margin-bottom:8px; }
 .mp-end-hero { display:flex; flex-direction:column; align-items:center; gap:8px; padding:6vh 0 2vh; }
 .mp-end-emoji { font-size:4rem; }
+.mp-guest-row { display:flex; gap:8px; width:100%; max-width:440px; }
+.mp-input-name { letter-spacing:normal; text-transform:none; text-align:left; font-family:var(--font-sans, inherit); }

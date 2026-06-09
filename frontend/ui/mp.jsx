@@ -32,7 +32,11 @@ function MpTimer({ deadline }) {
 function MpLogin({ onDone, onExit }) {
   const btnRef = useRef(null);
   const [err, setErr] = useState(null);
+  const [guestName, setGuestName] = useState('');
+  const [busy, setBusy] = useState(false);
   const cid = window.CONFIG.MP.GOOGLE_CLIENT_ID;
+  // convite na URL? convidado provavelmente só quer entrar e jogar
+  const hasInvite = !!new URLSearchParams(location.search).get('sala');
   useEffect(() => {
     if (!cid) return;
     const ok = window.MPAUTH.renderGoogleButton(btnRef.current, (session, e) => {
@@ -40,14 +44,33 @@ function MpLogin({ onDone, onExit }) {
     });
     if (!ok) setErr('Login do Google indisponível. Recarregue a página.');
   }, []);
+  async function enterAsGuest() {
+    setBusy(true); setErr(null);
+    try { onDone(await window.MPAUTH.loginAsGuest(guestName)); }
+    catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
   return (
     <div className="stage narrow screen-fade mp-center">
       <span className="tok">MULTIPLAYER ONLINE</span>
-      <h2>Jogue a Copa com seus amigos</h2>
-      <p className="sub">Crie uma sala, mande o convite, cada um monta seu time — e o torneio rola ao vivo, com todos em grupos diferentes até se cruzarem no mata-mata.</p>
+      <h2>{hasInvite ? 'Você foi convidado!' : 'Jogue a Copa com seus amigos'}</h2>
+      <p className="sub">{hasInvite
+        ? 'Diga seu nome e entre na sala — ou use sua conta Google.'
+        : 'Crie uma sala, mande o convite, cada um monta seu time — e o torneio rola ao vivo, com todos em grupos diferentes até se cruzarem no mata-mata.'}</p>
+
+      <div className="mp-guest-row">
+        <input className="mp-input mp-input-name" value={guestName} maxLength={30}
+          placeholder="Seu nome" onChange={e => setGuestName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && guestName.trim().length >= 2) enterAsGuest(); }} />
+        <button className="btn btn-yellow" disabled={busy || guestName.trim().length < 2} onClick={enterAsGuest}>
+          🎟 Entrar como convidado
+        </button>
+      </div>
+      <p className="p mp-hint">Convidados entram em salas existentes. Para <strong>criar</strong> uma sala, use o Google:</p>
+
       {cid
         ? <div ref={btnRef} className="mp-google-btn" />
-        : <p className="mp-error">⚠ Multiplayer não configurado (defina CONFIG.MP.GOOGLE_CLIENT_ID).</p>}
+        : <p className="mp-error">⚠ Login Google não configurado (CONFIG.MP.GOOGLE_CLIENT_ID).</p>}
       {err && <p className="mp-error">{err}</p>}
       <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
     </div>
@@ -56,15 +79,20 @@ function MpLogin({ onDone, onExit }) {
 
 function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   const [code, setCode] = useState('');
+  const guest = !!user.guest;
   return (
     <div className="stage narrow screen-fade mp-center">
       <span className="tok">MULTIPLAYER ONLINE</span>
-      <h2>Olá, {user.name.split(' ')[0]}!</h2>
+      <h2>Olá, {user.name.split(' ')[0]}!{guest ? ' 🎟' : ''}</h2>
       <div className="setgrid mp-menu">
         <div className="setcard">
           <span className="lab">Criar sala</span>
-          <p className="p">Você vira o anfitrião e recebe um código para convidar os amigos.</p>
-          <button className="btn btn-green" disabled={busy} onClick={onCreate}>➕ Criar sala</button>
+          {guest ? (
+            <p className="p">Convidados não criam salas — entre com o Google para ser o anfitrião.</p>
+          ) : (
+            <p className="p">Você vira o anfitrião e recebe um código para convidar os amigos.</p>
+          )}
+          <button className="btn btn-green" disabled={busy || guest} onClick={onCreate}>➕ Criar sala</button>
         </div>
         <div className="setcard">
           <span className="lab">Entrar numa sala</span>

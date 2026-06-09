@@ -50,13 +50,29 @@
     return true;
   }
 
+  // entra como convidado (só apelido) — pode JOGAR em salas existentes;
+  // criar sala continua exigindo a conta Google (o servidor reforça isso)
+  async function loginAsGuest(name) {
+    const res = await fetch(apiBase() + '/api/auth/guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Não foi possível entrar como convidado.');
+    session = data;
+    safeSet(session);
+    return session;
+  }
+
   function logout() { session = null; safeSet(null); }
 
   window.MPAUTH = {
     isLoggedIn: () => !!(session && session.token),
+    isGuest: () => !!(session && session.user && session.user.guest),
     session: () => session,
     token: () => (session ? session.token : null),
     user: () => (session ? session.user : null),
-    renderGoogleButton, loginWithCredential, logout,
+    renderGoogleButton, loginWithCredential, loginAsGuest, logout,
   };
 })();

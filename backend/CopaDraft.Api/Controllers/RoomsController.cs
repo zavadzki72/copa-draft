@@ -14,7 +14,12 @@ public class RoomsController(RoomService rooms) : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(CancellationToken ct)
-        => Ok(await rooms.CreateAsync(UserId, ct));
+    {
+        // convidados (apelido) só entram em salas existentes — criar exige Google
+        if (User.HasClaim(Auth.AuthService.GuestClaim, "1"))
+            return StatusCode(403, new { error = "Entre com o Google para criar salas." });
+        return Ok(await rooms.CreateAsync(UserId, ct));
+    }
 
     [HttpGet("{code}")]
     public async Task<IActionResult> Get(string code, CancellationToken ct)

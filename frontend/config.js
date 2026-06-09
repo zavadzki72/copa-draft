@@ -158,7 +158,7 @@ window.CONFIG = {
      on the .NET backend. The client only displays what the server streams. */
   MP: {
     API_BASE: '',                 // '' = same origin (nginx proxy); dev: 'http://localhost:5080'
-    GOOGLE_CLIENT_ID: '',         // OAuth client id (Google Cloud Console) — required for login
+    GOOGLE_CLIENT_ID: '885470834590-vk05is0ggem2r9t1ps8tk5a64dsrudmb.apps.googleusercontent.com',         // OAuth client id (Google Cloud Console) — required for login
     DRAFT_TIMER_SECONDS: 180,     // display only — the server enforces its own deadline
     PACE_MS_PER_MINUTE: 250,      // fallback do ritmo do ticker; o valor vivo vem do servidor
                                   // (RoundStarted.paceMsPerMinute) e DEVE espelhar MpOptions
