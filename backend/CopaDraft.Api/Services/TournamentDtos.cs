@@ -28,12 +28,16 @@ public sealed record TournamentSnapshotDto(
     string? ChampionTeamId,
     RoundInfoDto? CurrentRound);
 
-/// <summary>Pacing info for the round in progress (server clock authority).</summary>
+/// <summary>Pacing info for the round in progress (server clock authority).
+/// O STATUS faz parte do snapshot — o cliente deriva a UI dele (fonte única
+/// da verdade), em vez de depender de eventos avulsos chegarem na ordem.</summary>
 public sealed record RoundInfoDto(
     string Kind,           // group | knockout
     string Label,          // "Rodada 1" | round id
     int MaxMinute,         // 90 (groups) or up to 120 (knockout/ET)
     int PaceMsPerMinute,
+    string Status,         // aguardando (pré-jogo/ready-gate) | rolando (relógio ativo)
+    int ReadySeconds,      // timeout do ready-gate (exibição do countdown)
     IReadOnlyList<FixtureRefDto> Fixtures);
 
 public sealed record FixtureRefDto(string FixtureId, string HomeId, string AwayId, int LastMinute);

@@ -303,6 +303,7 @@ public sealed class TournamentOrchestrator(
         int maxMinute = matches.Max(m => LastMinute(m.Log));
 
         rt.CurrentRound = new RoundInfoDto(kind, label, maxMinute, mp.Value.PaceMsPerMinute,
+            "aguardando", mp.Value.RoundReadySeconds,
             matches.Select(m => new FixtureRefDto(m.FixtureId, m.HomeId, m.AwayId, LastMinute(m.Log))).ToList());
 
         // spectator pool: every match of the round is watchable
@@ -363,10 +364,17 @@ public sealed class TournamentOrchestrator(
             readySeconds = mp.Value.RoundReadySeconds,
             required = requiredCount,
         }, ct);
+        logger.LogInformation("[{Code}] gate da rodada {Label}: aguardando {N} jogadores (timeout {S}s)",
+            code, label, requiredCount, mp.Value.RoundReadySeconds);
         if (requiredCount > 0 && mp.Value.RoundReadySeconds > 0)
             await Task.WhenAny(gate.Task, Task.Delay(TimeSpan.FromSeconds(mp.Value.RoundReadySeconds), ct));
         lock (rt.GateLock) rt.RoundGate = null;
+        logger.LogInformation("[{Code}] gate da rodada {Label} aberto ({Via})",
+            code, label, gate.Task.IsCompleted ? "todos prontos" : "timeout");
 
+        // status no SNAPSHOT: o cliente deriva a transição pré-jogo → ao vivo daqui
+        rt.CurrentRound = rt.CurrentRound with { Status = "rolando" };
+        await BroadcastSnapshotAsync(code, rt);
         await hub.Clients.Group(code).SendAsync(RoundStartedEvent, rt.CurrentRound, ct);
 
         var clock = new RoundClock(mp.Value.PaceMsPerMinute);
