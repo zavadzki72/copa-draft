@@ -1,0 +1,91 @@
+{
+  "goal": [
+    "GOOOOL DO {TEAM}! {player} finaliza e não perdoa!",
+    "É GOL! {player} aproveita e marca para o {team}.",
+    "GOOOOL! {player} acha o canto e estufa a rede!",
+    "NA REDE! {player} marca um golaço para o {team}!",
+    "GOL! {player} sobe mais que a marcação e cabeceia pro fundo!",
+    "GOOOOL! {player} apareceu na hora certa e empurrou pro gol!"
+  ],
+  "assist": [
+    " Assistência de {assist}.",
+    " Tudo começou nos pés de {assist}.",
+    " Belo passe de {assist} para deixar o atacante na cara do gol.",
+    " {assist} deu o passe açucarado."
+  ],
+  "bigchance": [
+    "{player} recebe na entrada da área… PRA FORA! Quase o gol.",
+    "Que chance! {player} fica cara a cara, mas manda por cima.",
+    "{player} chuta forte… raspando a trave! Uhh, quase.",
+    "{player} cabeceia livre na pequena área e isola. Inacreditável!"
+  ],
+  "save": [
+    "Defesaça de {gk}! Salvou o {team}.",
+    "{gk} voa no ângulo e espalma! Que defesa.",
+    "{player} bate firme, mas {gk} faz a defesa e segura o {team}.",
+    "Milagre de {gk}! Tirou de baixo da trave."
+  ],
+  "woodwork": [
+    "NA TRAVE! {player} carimba o travessão.",
+    "No poste! {player} quase abre o placar.",
+    "A bola explode na trave após chute de {player}!"
+  ],
+  "yellow": [
+    "Cartão amarelo para {player} após falta dura.",
+    "{player} chega atrasado e vê o amarelo.",
+    "Amarelo! {player} segura o contra-ataque com falta."
+  ],
+  "foul": [
+    "Falta no meio-campo, {player} interrompe a jogada.",
+    "Jogo truncado, mais uma falta de {player}.",
+    "{player} comete falta e o juiz manda parar."
+  ],
+  "counter": [
+    "Contra-ataque puxado por {player}, mas a zaga afasta.",
+    "{player} lança em velocidade… a defesa corta no susto.",
+    "Arrancada de {player} pela ponta, cruzou e a zaga tirou."
+  ],
+  "red": [
+    "VERMELHO! {player} é expulso e deixa o {team} com um a menos.",
+    "Cartão vermelho direto para {player}! O {team} fica com dez.",
+    "Expulsão! {player} comete uma falta dura e vai para o chuveiro."
+  ],
+  "red2": [
+    "Segundo amarelo em {player} — está expulso! O {team} joga com um a menos.",
+    "{player} recebe o segundo amarelo e dá adeus. O {team} fica com dez."
+  ],
+  "injury": [
+    "{player} sente a coxa e cai no gramado — vai precisar de atendimento.",
+    "Lesão! {player} se machuca numa dividida e não tem condições de seguir.",
+    "{player} pede para sair, sentindo a musculatura."
+  ],
+  "penGoal": [
+    "Pênalti para o {team}! {player} bate com categoria — GOL!",
+    "Na marca da cal: {player} desloca o goleiro e marca para o {team}!",
+    "Pênalti convertido! {player} não desperdiça pelo {team}."
+  ],
+  "penSave": [
+    "Pênalti para o {team}… mas {gk} DEFENDE! Que pegada.",
+    "{player} cobra e {gk} voa para espalmar o pênalti!"
+  ],
+  "penMiss": [
+    "Pênalti para o {team}… {player} manda PRA FORA! Desperdiçou.",
+    "{player} isola a cobrança de pênalti. Inacreditável!"
+  ],
+  "kickoff": "Bola rolando! {home} x {away}.",
+  "halfTime": "Fim do primeiro tempo.",
+  "etStart": "Empate no tempo normal. Vamos à prorrogação!",
+  "pensDecision": "Persiste o empate. Decisão nos pênaltis!",
+  "fullTime": "Fim de jogo!",
+  "pensLine": "Nos pênaltis: {home} {hs} x {away} {as}.",
+  "pensDecisionLine": "Decisão nos pênaltis: {home} {hs} x {away} {as}.",
+  "injSub": " Entra {player} no lugar.",
+  "injDown": " O {team} fica com um a menos.",
+  "gkFallback": "o goleiro",
+  "penYouGoal": "Você cobra o pênalti… GOL!",
+  "penYouSave": "Sua cobrança foi defendida pelo goleiro!",
+  "penYouMiss": "Você mandou o pênalti para fora!",
+  "penOppGoal": "Você não alcança — gol do adversário no pênalti.",
+  "penOppSave": "DEFENDEU! Você pegou o pênalti.",
+  "penOppMiss": "O adversário desperdiçou o pênalti!"
+}

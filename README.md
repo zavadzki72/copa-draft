@@ -7,8 +7,9 @@ elenco você rola o dado, recebe uma seleção histórica e escala um craque del
 ídolos de várias Copas num só time. Depois é disputar o mata-mata numa simulação minuto a
 minuto, com narração em português.
 
-**HTML + JavaScript puro (React via CDN).** Sem build, sem dependências para instalar.
-Abra o `index.html` e jogue.
+**Mono-repo:** `frontend/` (HTML + JavaScript puro, React via CDN — sem build) e
+`backend/` (.NET 10 — API + SignalR para o **modo Multiplayer Online**).
+O modo solo continua 100% no navegador: abra o `frontend/index.html` e jogue.
 
 ---
 
@@ -36,52 +37,49 @@ Abra o `index.html` e jogue.
 
 ## 🚀 Rodando localmente
 
-Como é HTML estático, basta abrir o arquivo — mas alguns navegadores bloqueiam
-`fetch` de arquivos locais, então o ideal é servir por HTTP:
+### Solo (só o frontend)
 
 ```bash
-# opção 1: Python
-python3 -m http.server 8000
-
-# opção 2: Node
-npx serve
+cd frontend
+python3 -m http.server 8000    # ou: npx serve
 ```
 
 Depois abra `http://localhost:8000` no navegador.
+
+### Stack completa (com Multiplayer Online)
+
+```bash
+cp .env.example .env           # preencha JWT_KEY e GOOGLE_CLIENT_ID
+docker compose up --build -d   # front + API .NET + PostgreSQL
+```
+
+Abra `http://localhost:8090`. O backend roda em `backend/` (testes: `dotnet test backend/CopaDraft.slnx`).
 
 ---
 
 ## 📁 Estrutura
 
 ```
-index.html            # ponto de entrada (carrega tudo)
-config.js             # TODAS as constantes de balanceamento (ajuste à vontade)
-game.css              # estilos do jogo (sobre o design system)
-app.jsx               # máquina de estados / telas
+frontend/             # o jogo (SPA sem build)
+  index.html          # ponto de entrada (carrega tudo)
+  config.js           # TODAS as constantes de balanceamento (+ seção MP)
+  game.css            # estilos do jogo (sobre o design system)
+  app.jsx             # máquina de estados / telas
+  lib/                # rng, derive, engine (puro/determinístico), team, store,
+                      # sound, sharecard, mp-auth/mp-api/mp-realtime (multiplayer)
+  ui/                 # telas (home, draft, match, post, group, mp...)
+  data/squads.js      # elencos históricos
+  styles/             # tokens e estilos do design system
+  tests/              # testes do engine (node frontend/tests/engine.test.js)
 
-lib/
-  rng.js              # gerador aleatório com semente (determinístico)
-  derive.js           # deriva os 6 atributos FIFA
-  engine.js           # motor de partida puro: simulateMatch(sides, config, seed)
-  ratings.js          # notas dos jogadores + craque do jogo
-  team.js             # draft, formações, chaveamento, fadiga
-  achievements.js     # catálogo de conquistas
-  store.js            # persistência (localStorage)
-  sound.js            # SFX sintetizados (WebAudio)
-  sharecard.js        # gera o card PNG da campanha
+backend/              # Multiplayer Online (.NET 10)
+  CopaDraft.Engine/        # porte C# do engine (paridade validada por seed)
+  CopaDraft.Api/           # REST + SignalR + EF Core (salas, draft, torneio)
+  CopaDraft.Engine.Tests/  # testes, incl. vetores-ouro JS↔C#
 
-ui/
-  components.jsx      # componentes compartilhados (escudo, campo, barras...)
-  home.jsx            # tela inicial + seleção de modo/formação
-  draft.jsx           # draft no dado + revisão do elenco
-  match.jsx           # pré-jogo (escalação/subs) + ticker ao vivo
-  penalty.jsx         # mini-game de pênaltis
-  post.jsx            # pós-jogo, chaveamento, fim de campanha
-
-data/
-  squads.js           # elencos históricos (4 seleções × 2 Copas)
-
-styles/               # tokens e estilos do design system
+squads.json           # pool de elencos compartilhado (gerado de data/squads.js)
+tools/                # geradores (squads.json, narração, vetores-ouro)
+docker-compose.yml    # front + api + postgres
 ```
 
 ### Ajuste de balanceamento

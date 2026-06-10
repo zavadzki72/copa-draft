@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CopaDraft.Api/CopaDraft.Api.csproj" />
+  <Project Path="CopaDraft.Engine.Tests/CopaDraft.Engine.Tests.csproj" />
+  <Project Path="CopaDraft.Engine/CopaDraft.Engine.csproj" />
+</Solution>

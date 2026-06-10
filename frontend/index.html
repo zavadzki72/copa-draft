@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Copa Draft — Monte o time dos sonhos</title>
+
+  <!-- Brand / favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="images/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="images/favicon/favicon-180x180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0D120E">
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Copa Draft — Monte o time dos sonhos">
+  <meta property="og:description" content="Monte o time dos sonhos e ganhe a Copa do Mundo.">
+  <meta property="og:image" content="images/favicon/favicon-512x512.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Copa Draft — Monte o time dos sonhos">
+  <meta name="twitter:description" content="Monte o time dos sonhos e ganhe a Copa do Mundo.">
+  <meta name="twitter:image" content="images/favicon/favicon-512x512.png">
+
+  <!-- Apply the saved (or system) theme BEFORE first paint to avoid a flash.
+       The definitive theme state is owned by app.jsx; this only pre-sets the
+       data-theme attribute the CSS tokens key off. -->
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem('copa_draft_profile_v1') || '{}');
+        var t = (p && (p.theme === 'light' || p.theme === 'dark')) ? p.theme
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+
+  <link rel="stylesheet" href="game.css">
+
+  <!-- engine + data (plain scripts, order matters) -->
+  <script src="config.js"></script>
+  <script src="lib/i18n.js"></script>
+  <script src="lib/rng.js"></script>
+  <script src="lib/derive.js"></script>
+  <script src="lib/ratings.js"></script>
+  <script src="lib/stats.js"></script>
+  <script src="lib/engine.js"></script>
+  <script src="data/squads.js"></script>
+  <script src="lib/team.js"></script>
+  <script src="lib/achievements.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="lib/sound.js"></script>
+  <script src="lib/sharecard.js"></script>
+
+  <!-- multiplayer online (PRD_004): SignalR + Google Identity + serviços MP -->
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js" integrity="sha384-mU1xC5yC2LldSW74Rj1Ax8wPiLw/28V5eh51uKJMlBbRVsOtUYd4xyzNsgIAJARB" crossorigin="anonymous"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="lib/mp-log.js"></script>
+  <script src="lib/mp-auth.js"></script>
+  <script src="lib/mp-api.js"></script>
+  <script src="lib/mp-realtime.js"></script>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body class="copa-scope">
+  <div id="root"></div>
+  <script type="text/babel" src="ui/components.jsx"></script>
+  <script type="text/babel" src="ui/howto.jsx"></script>
+  <script type="text/babel" src="ui/home.jsx"></script>
+  <script type="text/babel" src="ui/draft.jsx"></script>
+  <script type="text/babel" src="ui/match.jsx"></script>
+  <script type="text/babel" src="ui/penalty.jsx"></script>
+  <script type="text/babel" src="ui/modal.jsx"></script>
+  <script type="text/babel" src="ui/post.jsx"></script>
+  <script type="text/babel" src="ui/group.jsx"></script>
+  <script type="text/babel" src="ui/mp.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

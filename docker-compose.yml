@@ -1,0 +1,43 @@
+# Copa Draft — stack completa (frontend estático + API .NET + PostgreSQL).
+# Suba com:  docker compose up --build -d
+# Configure os segredos copiando .env.example para .env.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: copadraft
+      POSTGRES_USER: copadraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-copadraft}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copadraft -d copadraft"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=copadraft;Username=copadraft;Password=${POSTGRES_PASSWORD:-copadraft}"
+      Jwt__Key: ${JWT_KEY:?defina JWT_KEY no .env}
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Cors__Origins__0: ${PUBLIC_ORIGIN:-http://localhost:8090}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "${WEB_PORT:-8090}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
