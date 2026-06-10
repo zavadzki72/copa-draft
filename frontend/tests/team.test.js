@@ -63,7 +63,8 @@ const mono = avgFirstLast(200);
 ok('escala de forca: final mais forte que a 1a fase (media)', mono.last > mono.first);
 
 // 6c) phaseWeight peaks at the target strength
-const pool = window.SQUADS;
+const { SQUADS } = require('./_shim');
+const pool = SQUADS;
 const strongest = [...pool].sort((a, b) => TEAM.squadAvg(b) - TEAM.squadAvg(a))[0];
 const weakest = [...pool].sort((a, b) => TEAM.squadAvg(a) - TEAM.squadAvg(b))[0];
 ok('forte pesa mais para alvo alto', TEAM.phaseWeight(strongest, pool, 1.0, 5) > TEAM.phaseWeight(weakest, pool, 1.0, 5));
@@ -102,7 +103,7 @@ const row = id => tbl.find(r => r.teamRef === id);
 ok('A: 2V 1E => 7 pts', row(A).P === 7 && row(A).V === 2 && row(A).E === 1);
 ok('A no topo', tbl[0].teamRef === A);
 ok('A GP/GC/SG corretos', row(A).GP === 3 && row(A).GC === 0 && row(A).SG === 3);
-ok('D: 1V 1E 1D => 4 pts', row(Dd).P === 4);
+ok('D: 1V 2E => 5 pts', row(Dd).P === 5 && row(Dd).V === 1 && row(Dd).E === 2 && row(Dd).D === 0);
 
 // 7c) tiebreak stability: equal P/SG/GP -> stable draw order
 const tieGrp = { teams: ['me', 'x', 'y', 'z'], rivals: [], fixtures: [
