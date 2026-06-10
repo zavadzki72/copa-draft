@@ -1,18 +1,18 @@
-# Copa Draft — site estático servido por nginx.
-# Não há build: copiamos os assets do jogo direto para o nginx.
+# Copa Draft — front com build de produção (esbuild) servido por nginx.
+# O dev continua sem build (Babel no navegador); a transpilação dos .jsx
+# e a troca para o React de produção acontecem aqui, via build.mjs.
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY . .
+RUN npm i --no-save --no-audit --no-fund esbuild@0.25 && node build.mjs
+
 FROM nginx:1.27-alpine
 
 # Config do nginx (cache de assets + fallback pro index.html)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Apenas os arquivos que o index.html realmente carrega.
 WORKDIR /usr/share/nginx/html
-COPY index.html config.js game.css app.jsx manifest.webmanifest ./
-COPY lib/    ./lib/
-COPY ui/     ./ui/
-COPY data/   ./data/
-COPY styles/ ./styles/
-COPY images/ ./images/
+COPY --from=build /app/dist ./
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \

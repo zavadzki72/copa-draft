@@ -324,4 +324,7 @@ function AchievementToast({ ach }) {
   );
 }
 
-Object.assign(window, { Flag, Crest, TeamMark, roundText, ovrClass, ratingClass, PosPill, AttrBars, GameHeader, PlayerTile, Pitch, AchievementToast });
+// os hooks vão junto: no build de produção cada arquivo roda num IIFE, e os
+// demais .jsx resolvem useState/useEffect/useRef/useMemo via window (no dev o
+// Babel já os globaliza ao rebaixar const -> var).
+Object.assign(window, { useState, useEffect, useRef, useMemo, Flag, Crest, TeamMark, roundText, ovrClass, ratingClass, PosPill, AttrBars, GameHeader, PlayerTile, Pitch, AchievementToast });
