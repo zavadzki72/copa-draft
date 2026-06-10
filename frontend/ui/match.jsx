@@ -251,7 +251,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
 }
 
 /* ---------- LIVE MATCH TICKER ---------- */
-function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onShootout, onPenalty, pendingPen, fixedPace }) {
+function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onShootout, onPenalty, pendingPen, fixedPace, startAtMinute }) {
   const beep = sfx || (() => {});
   const C = window.CONFIG;
   const t = (k, v) => window.I18N.t(k, v);
@@ -272,9 +272,12 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
   useEffect(() => { if (speed && SP[speed]) setLocalSpeed(speed); }, [speed]); // eslint-disable-line
   function changeSpeed(v) { setLocalSpeed(v); if (onSpeedChange) onSpeedChange(v); beep('select'); }
 
-  const [clock, setClock] = useState(0);
+  // multiplayer: quem entra com a partida em andamento começa do minuto atual
+  // do relógio do servidor (startAtMinute), em vez de re-assistir do zero
+  const clock0 = Math.min(startAtMinute || 0, maxMinute);
+  const [clock, setClock] = useState(clock0);
   const [done, setDone] = useState(false);
-  const clockRef = useRef(0);
+  const clockRef = useRef(clock0);
   const tickerRef = useRef(null);
   const pausedRef = useRef(false);                 // frozen while a penalty mini-game is open
   const handledRef = useRef(new Set());            // penIds already presented

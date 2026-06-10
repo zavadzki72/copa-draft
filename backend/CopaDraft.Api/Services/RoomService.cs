@@ -124,6 +124,31 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
         return await GetStateAsync(code, ct);
     }
 
+    /// <summary>Revanche: sala encerrada volta ao lobby — novo seed, ready
+    /// zerado, times e registro do torneio descartados. Só o anfitrião.</summary>
+    public async Task<RoomStateDto> ResetForRematchAsync(string code, Guid userId, CancellationToken ct = default)
+    {
+        Room room = await RequireRoomAsync(code, ct);
+        if (room.State != RoomState.Finished)
+            throw new RoomServiceException("A revanche só pode começar depois do torneio encerrar.");
+        if (room.HostUserId != userId)
+            throw new RoomServiceException("Só o anfitrião pode iniciar a revanche.");
+
+        room.State = RoomState.Waiting;
+        room.Seed = Random.Shared.Next();
+        room.DraftDeadline = null;
+        foreach (Participant p in room.Participants)
+        {
+            p.Ready = false;
+            if (p.Presence == Presence.AiControlled) p.Presence = Presence.Connected;
+        }
+        List<Guid> partIds = room.Participants.Select(p => p.Id).ToList();
+        db.Teams.RemoveRange(db.Teams.Where(t => partIds.Contains(t.ParticipantId)));
+        db.Tournaments.RemoveRange(db.Tournaments.Where(t => t.RoomId == room.Id));
+        await db.SaveChangesAsync(ct);
+        return await GetStateAsync(code, ct);
+    }
+
     public async Task SetPresenceAsync(string code, Guid userId, Presence presence, CancellationToken ct = default)
     {
         Room? room = await db.Rooms.Include(r => r.Participants)

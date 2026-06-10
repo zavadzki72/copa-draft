@@ -20,20 +20,31 @@ public sealed class ApiTestHost : IDisposable
     private readonly SqliteConnection _conn;
     public WebApplicationFactory<Program> Factory { get; }
 
-    public ApiTestHost()
+    public ApiTestHost() : this(null) { }
+
+    /// <param name="overrides">Config extra (ex.: ligar o ready-gate num teste específico).
+    /// Internal: fixtures do xUnit só podem ter UM construtor público.</param>
+    internal ApiTestHost(Dictionary<string, string?>? overrides)
     {
         _conn = new SqliteConnection("DataSource=:memory:");
         _conn.Open();
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseSetting("SKIP_MIGRATIONS", "true");
-            b.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            b.ConfigureAppConfiguration((_, cfg) =>
             {
-                ["Jwt:Key"] = "integration-test-key-0123456789abcdef-extra",
-                ["Jwt:Issuer"] = "copa-draft-tests",
-                ["Mp:PaceMsPerMinute"] = "0",      // torneios instantâneos nos testes
-                ["Mp:InterRoundSeconds"] = "0",
-            }));
+                var settings = new Dictionary<string, string?>
+                {
+                    ["Jwt:Key"] = "integration-test-key-0123456789abcdef-extra",
+                    ["Jwt:Issuer"] = "copa-draft-tests",
+                    ["Mp:PaceMsPerMinute"] = "0",      // torneios instantâneos nos testes
+                    ["Mp:InterRoundSeconds"] = "0",
+                    ["Mp:RoundReadySeconds"] = "0",   // gate desligado nos testes de fluxo
+                };
+                if (overrides is not null)
+                    foreach ((string k, string? v) in overrides) settings[k] = v;
+                cfg.AddInMemoryCollection(settings);
+            });
             b.ConfigureServices(services =>
             {
                 ServiceDescriptor[] efDescriptors = services

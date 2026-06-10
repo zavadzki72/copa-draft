@@ -23,4 +23,8 @@ public sealed class MpOptions
 
     /// <summary>Pause between rounds so players can read tables/bracket.</summary>
     public int InterRoundSeconds { get; set; } = 12;
+
+    /// <summary>Ready-gate antes de cada rodada: ela só começa quando todos os
+    /// humanos vivos/conectados clicam "iniciar" — ou após este timeout.</summary>
+    public int RoundReadySeconds { get; set; } = 60;
 }

@@ -94,8 +94,9 @@ public class TournamentIntegrationTests : IClassFixture<ApiTestHost>
         Assert.False(string.IsNullOrEmpty(champ.GetProperty("championTeamId").GetString()));
 
         JsonElement snapshot = await WaitFor(lastSnapshot, "snapshot final");
-        // copa completa: 3 rodadas de grupos + oitavas/quartas/semi/final = 7 relógios
-        Assert.True(minuteTicks >= 90 * 7, $"esperava ticks de 7 rodadas, veio {minuteTicks}");
+        // grupos sempre têm humanos → 3 relógios garantidos; rodadas de mata-mata
+        // só entre IAs rodam em fast-forward (sem ticks) por design
+        Assert.True(minuteTicks >= 90 * 3, $"esperava ao menos os ticks dos grupos, veio {minuteTicks}");
 
         // sempre 8 grupos (32 times), cada um com no máx. 1 humano
         JsonElement groups = snapshot.GetProperty("groups");

@@ -178,7 +178,7 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave }) {
 }
 
 /* groups + bracket, fed live by server snapshots */
-function MpTournament({ snap, meId, minute, yourMatch, onWatch, follow, onFollow, onSpectate }) {
+function MpTournament({ snap, meId, minute, yourMatch, onWatch, roundReady, readyProgress, follow, onFollow, onSpectate }) {
   const phase = snap.phase;
   const roundInfo = snap.currentRound;
   const teamName = (id) => mpTeamInfo(snap, id).name;
@@ -188,8 +188,9 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, follow, onFollow
   const [showPicker, setShowPicker] = useState(false);
 
   // estou jogando NESTA rodada? (evita o card "rolando" preso entre rodadas)
+  // durante o pré-jogo (roundReady) a rodada ainda não rola — nada de "ao vivo"
   const myCurrentFixture = window.MPLOG.fixtureOfTeam(roundInfo, myTeamId);
-  const myMatchLive = !!(yourMatch && myCurrentFixture && yourMatch.fixtureId === myCurrentFixture.fixtureId);
+  const myMatchLive = !roundReady && !!(yourMatch && myCurrentFixture && yourMatch.fixtureId === myCurrentFixture.fixtureId);
 
   // eliminação + humanos vivos (pra acompanhar)
   const elim = window.MPLOG.eliminationInfo(snap, myTeamId);
@@ -209,8 +210,17 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, follow, onFollow
               : roundInfo ? `${roundInfo.label} em andamento` : 'Aguardando próxima rodada…'}
           </h2>
         </div>
-        {roundInfo && phase !== 'encerrada' && <span className="meta">⏱ minuto {minute || 0}</span>}
+        {roundInfo && phase !== 'encerrada' && !roundReady && <span className="meta">⏱ minuto {minute || 0}</span>}
       </div>
+
+      {/* pré-jogo da rodada: jogadores confirmando presença */}
+      {roundReady && phase !== 'encerrada' && (
+        <div className="mp-yourmatch setcard">
+          <span className="lab">⏳ {roundReady.round.label}: jogadores confirmando
+            {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</span>
+          <p className="p mp-hint">A rodada começa quando todos clicarem em iniciar (ou em {roundReady.readySeconds}s).</p>
+        </div>
+      )}
 
       {/* eliminado: feedback + acompanhar campeonato */}
       {elim.eliminated && phase !== 'encerrada' && (
@@ -254,8 +264,8 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, follow, onFollow
         </div>
       ) : null)}
 
-      {/* partida do time acompanhado */}
-      {follow && followAlive && followFixture && phase !== 'encerrada' && (
+      {/* partida do time acompanhado (só com a rodada em andamento de verdade) */}
+      {follow && followAlive && followFixture && !roundReady && phase !== 'encerrada' && (
         <div className="mp-yourmatch setcard">
           <span className="lab">Partida de {teamName(follow)} está rolando</span>
           <button className="btn btn-yellow" onClick={() => onSpectate(followFixture.fixtureId)}>
@@ -329,23 +339,38 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, follow, onFollow
   );
 }
 
-function MpEnd({ snap, meId, onExit, onBackToTables }) {
+function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
   const myTeamId = 'h:' + meId;
   const champion = snap.championTeamId;
   const iAmChampion = champion === myTeamId;
+
+  // medalha/feedback coerente com até onde EU cheguei (não 🥈 genérico)
+  const elim = window.MPLOG.eliminationInfo(snap, myTeamId);
+  const stageIcons = { final: '🥈', semi: '🥉' };
+  const emoji = iAmChampion ? '🏆' : (stageIcons[elim.stage] || '⚽');
+  const stageLabel = elim.stage === 'grupos' ? 'na fase de grupos'
+    : elim.stage ? `em ${window.roundText({ id: elim.stage }, 'label')}` : '';
+  const title = iAmChampion ? 'CAMPEÃO DA SALA!'
+    : elim.stage === 'final' ? 'Vice-campeão!'
+    : `Você caiu ${stageLabel}`;
+
   return (
     <div className="stage narrow screen-fade mp-center">
       <div className="mp-end-hero">
-        <div className="mp-end-emoji">{iAmChampion ? '🏆' : '🥈'}</div>
+        <div className="mp-end-emoji">{emoji}</div>
         <span className="tok">TORNEIO ENCERRADO</span>
-        <h2>{iAmChampion ? 'CAMPEÃO DA SALA!' : `Campeão: ${mpTeamInfo(snap, champion).name}`}</h2>
+        <h2>{title}</h2>
+        {!iAmChampion && <p className="sub">Campeão da sala: <strong>{champion ? mpTeamInfo(snap, champion).name : '—'}</strong></p>}
         <p className="sub">{iAmChampion
           ? 'Seu time dos sonhos levou a taça contra seus amigos. Respeito eterno no grupo.'
-          : 'Não foi dessa vez — confira a campanha completa e peça revanche.'}</p>
+          : 'Confira a campanha completa — ou jogue de novo pra buscar a forra.'}</p>
       </div>
       <div className="mp-foot">
         <button className="btn btn-ghost" onClick={onBackToTables}>📊 Ver campanha</button>
-        <button className="btn btn-green" onClick={onExit}>↻ Voltar ao início</button>
+        {isHost
+          ? <button className="btn btn-green" onClick={onPlayAgain}>🔁 Jogar novamente</button>
+          : <span className="p mp-hint">O anfitrião pode iniciar uma revanche 🔁</span>}
+        <button className="btn btn-ghost" onClick={onExit}>← Sair da sala</button>
       </div>
     </div>
   );
@@ -367,10 +392,18 @@ function MultiplayerApp({ sfx, onExit }) {
   const [watching, setWatching] = useState(false);
   const [follow, setFollow] = useState(null);        // teamId humano acompanhado (eliminado)
   const [spectMatch, setSpectMatch] = useState(null); // {fixtureId, homeId, awayId, log}
+  const [roundReady, setRoundReady] = useState(null); // {round, readySeconds, required} — pré-jogo
+  const [readyProgress, setReadyProgress] = useState(null); // {ready, total}
+  const [iClickedReady, setIClickedReady] = useState(false);
+  const [postMatch, setPostMatch] = useState(null);  // {log, ratings} — pós-jogo (reuso do solo)
   const meId = session ? session.user.id : null;
 
   const stageRef = useRef(stage);
   stageRef.current = stage;
+  const yourMatchRef = useRef(null);
+  yourMatchRef.current = yourMatch;
+  const lastRoundRef = useRef(null);                 // info da rodada corrente p/ rótulos
+  const busyWatchingRef = useRef(false);             // assistindo/pós-jogo: não puxar pra tela final
 
   // wire server events once
   useEffect(() => {
@@ -378,17 +411,46 @@ function MultiplayerApp({ sfx, onExit }) {
       window.MPRT.on('RoomState', (state) => {
         setRoom(state);
         if (state.state === 'draft' && ['lobby'].includes(stageRef.current)) setStage('draft');
+        // revanche: a sala voltou ao lobby — zera todo o estado do torneio anterior
+        if (state.state === 'aguardando' && !['login', 'menu', 'lobby'].includes(stageRef.current)) {
+          setSnap(null); setYourMatch(null); setFollow(null); setSpectMatch(null);
+          setPostMatch(null); setWatching(false); setRoundReady(null); setReadyProgress(null);
+          setIClickedReady(false); setFormationChosen(false); setDeadline(null); setProgress(null);
+          setMinute(0);
+          setStage('lobby');
+        }
       }),
       window.MPRT.on('DraftStarted', (info) => { setDeadline(info.deadline); setStage('draft'); }),
       window.MPRT.on('DraftProgress', setProgress),
       window.MPRT.on('TournamentState', (s) => {
         setSnap(s);
         if (['draft', 'draft-wait', 'lobby'].includes(stageRef.current)) setStage('tournament');
-        if (s.phase === 'encerrada' && stageRef.current === 'tournament') setStage('end');
+        // só vai pra tela final quando o jogador não está no meio do ticker/pós-jogo
+        if (s.phase === 'encerrada' && stageRef.current === 'tournament' && !busyWatchingRef.current)
+          setStage('end');
       }),
-      window.MPRT.on('YourMatch', (m) => { setYourMatch(m); setWatching(true); }),
+      window.MPRT.on('YourMatch', (m) => setYourMatch(m)),     // assistir só quando a rodada COMEÇAR
       window.MPRT.on('WatchMatch', (m) => setSpectMatch(m)),
-      window.MPRT.on('RoundStarted', () => setSpectMatch(null)), // rodada nova: espectador re-escolhe
+      window.MPRT.on('RoundReady', (info) => {                 // pré-jogo: aguardando "iniciar partida"
+        lastRoundRef.current = info.round;
+        busyWatchingRef.current = false;
+        setRoundReady(info);
+        setReadyProgress(null);
+        setIClickedReady(false);
+        setSpectMatch(null);
+        setPostMatch(null);
+        setWatching(false);
+        setMinute(0);
+      }),
+      window.MPRT.on('RoundReadyProgress', setReadyProgress),
+      window.MPRT.on('RoundStarted', (round) => {
+        lastRoundRef.current = round;
+        setRoundReady(null);
+        setMinute(0);
+        // dono do time: entra direto na própria partida quando a rodada abre
+        const mine = yourMatchRef.current;
+        if (mine && round.fixtures.some(f => f.fixtureId === mine.fixtureId)) setWatching(true);
+      }),
       window.MPRT.on('MinuteTick', setMinute),
       window.MPRT.on('TournamentFinished', () => { /* snapshot 'encerrada' cuida da UI */ }),
       window.MPRT.on('LobbyError', (msg) => setError(msg)),
@@ -515,32 +577,99 @@ function MultiplayerApp({ sfx, onExit }) {
       </div>
     );
 
-  const mpRound = () => (snap && snap.phase === 'mata-mata' && snap.currentRound
-    ? { id: snap.currentRound.label }
-    : { stage: 'group', label: snap && snap.currentRound ? snap.currentRound.label : 'Fase de grupos' });
-  const mpPace = () => (snap && snap.currentRound && snap.currentRound.paceMsPerMinute)
-    || window.CONFIG.MP.PACE_MS_PER_MINUTE;
+  // rótulo de rodada (PreMatch/Match/PostMatch) a partir da info do servidor
+  const mpRound = () => {
+    const info = (snap && snap.currentRound) || lastRoundRef.current;
+    if (info && info.kind === 'knockout') return { id: info.label };
+    return { stage: 'group', label: info ? info.label : 'Fase de grupos' };
+  };
+  const mpPace = () => {
+    const info = (snap && snap.currentRound) || lastRoundRef.current;
+    return (info && info.paceMsPerMinute) || window.CONFIG.MP.PACE_MS_PER_MINUTE;
+  };
+  const fullPlayer = (ref) => {
+    const p = window.MPLOG.playerById(ref.id) || ref;
+    return { ...p, attrs: window.DERIVE.deriveAttrs(p) };
+  };
+
+  // ---- pré-jogo (reuso do PreMatchScreen do solo): "iniciar partida" = pronto ----
+  if (stage === 'tournament' && roundReady && yourMatch
+      && roundReady.round.fixtures.some(f => f.fixtureId === yourMatch.fixtureId)) {
+    if (iClickedReady) {
+      return (
+        <div className="stage narrow screen-fade mp-center">
+          <span className="tok">{roundReady.round.label.toUpperCase()}</span>
+          <h2>Pronto! ✓</h2>
+          <p className="sub">Aguardando os outros jogadores
+            {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…
+            A rodada começa quando todos derem o pontapé (ou em {roundReady.readySeconds}s).</p>
+        </div>
+      );
+    }
+    const log = yourMatch.log;
+    const meSideKey = yourMatch.side;
+    const oppSideKey = meSideKey === 'home' ? 'away' : 'home';
+    const meSide = log[meSideKey], oppSide = log[oppSideKey];
+    const myXI = meSide.starters.map(fullPlayer);
+    const oppXI = oppSide.starters.map(fullPlayer);
+    const oppAvg = Math.round(oppXI.reduce((s, p) => s + p.overall, 0) / Math.max(1, oppXI.length));
+    const round = { ...mpRound(), n: 0, opponent: { team: oppSide.name, code: oppSide.code || null, cup: oppSide.cup || '' } };
+    return (
+      <PreMatchScreen me={{ name: session.user.name, dream: true }}
+        starters={myXI} bench={[]} formation={meSide.formation} starId={null}
+        round={round} fatigue={{}} playerStatus={{}}
+        opponentXI={oppXI} opponentAvg={oppAvg}
+        onStart={() => {
+          setIClickedReady(true);
+          window.MPRT.invoke('ReadyForRound', room.code).catch(() => {});
+        }} />
+    );
+  }
+
+  // ---- pós-jogo (reuso do PostMatchScreen do solo) ----
+  if (stage === 'tournament' && postMatch) {
+    busyWatchingRef.current = true;
+    return (
+      <PostMatchScreen log={postMatch.log} ratings={postMatch.ratings} round={postMatch.round}
+        me={{ name: session.user.name, dream: true }} group={null} standings={null}
+        onNext={() => {
+          busyWatchingRef.current = false;
+          setPostMatch(null);
+          if (snap && snap.phase === 'encerrada') setStage('end');
+        }} />
+    );
+  }
 
   if (stage === 'tournament' && watching && yourMatch) {
+    busyWatchingRef.current = true;
     const log = yourMatch.side === 'away' ? window.MPLOG.flipLog(yourMatch.log) : yourMatch.log;
     const me = { name: session.user.name, dream: true };
-    // ritmo canônico do SERVIDOR (RoundStarted.paceMsPerMinute) — sem seletor no MP
+    const round = mpRound();
+    // ritmo canônico do SERVIDOR; quem (re)entra cai no minuto corrente
     return (
-      <MatchScreen log={log} me={me} round={mpRound()} sfx={sfx}
-        speed={null} onSpeedChange={null} fixedPace={mpPace()}
-        onFinish={() => setWatching(false)}
+      <MatchScreen log={log} me={me} round={round} sfx={sfx}
+        speed={null} onSpeedChange={null} fixedPace={mpPace()} startAtMinute={minute}
+        onFinish={() => {
+          setWatching(false);
+          setPostMatch({ log, round, ratings: window.RATINGS.computeRatings(log, window.CONFIG) });
+        }}
         onShootout={null} onPenalty={null} pendingPen={null} />
     );
   }
 
   // espectador: partida do time humano acompanhado (perspectiva dele = home)
   if (stage === 'tournament' && spectMatch && follow) {
+    busyWatchingRef.current = true;
     const log = spectMatch.awayId === follow ? window.MPLOG.flipLog(spectMatch.log) : spectMatch.log;
     const me = { name: mpTeamInfo(snap, follow).name, dream: true };
     return (
       <MatchScreen log={log} me={me} round={mpRound()} sfx={sfx}
-        speed={null} onSpeedChange={null} fixedPace={mpPace()}
-        onFinish={() => setSpectMatch(null)}
+        speed={null} onSpeedChange={null} fixedPace={mpPace()} startAtMinute={minute}
+        onFinish={() => {
+          busyWatchingRef.current = false;
+          setSpectMatch(null);
+          if (snap && snap.phase === 'encerrada') setStage('end');
+        }}
         onShootout={null} onPenalty={null} pendingPen={null} />
     );
   }
@@ -548,12 +677,15 @@ function MultiplayerApp({ sfx, onExit }) {
   if (stage === 'tournament' && snap)
     return <MpTournament snap={snap} meId={meId} minute={minute}
       yourMatch={yourMatch} onWatch={() => setWatching(true)}
+      roundReady={roundReady} readyProgress={readyProgress}
       follow={follow} onFollow={setFollow}
       onSpectate={(fixtureId) => window.MPRT.invoke('WatchFixture', room.code, fixtureId).catch(() => {})} />;
 
   if (stage === 'end' && snap)
-    return <MpEnd snap={snap} meId={meId} onExit={leaveAll}
-      onBackToTables={() => setStage('tournament')} />;
+    return <MpEnd snap={snap} meId={meId} isHost={room && room.hostUserId === meId}
+      onExit={leaveAll}
+      onBackToTables={() => setStage('tournament')}
+      onPlayAgain={() => window.MPRT.invoke('PlayAgain', room.code).catch(() => {})} />;
 
   // fallback: conectando…
   return (

@@ -94,6 +94,36 @@ public class LobbyHub(
 
     public const string WatchMatchEvent = "WatchMatch";
 
+    /// <summary>"Iniciar partida" do pré-jogo: marca o jogador como pronto para a
+    /// rodada; quando todos os exigidos clicam (ou o timeout vence) ela começa.</summary>
+    public async Task ReadyForRound(string code)
+    {
+        code = code.ToUpperInvariant();
+        (int Ready, int Total)? progress = orchestrator.MarkRoundReady(code, UserId);
+        if (progress is not null)
+            await Clients.Group(code).SendAsync(TournamentOrchestrator.RoundReadyProgressEvent, new
+            {
+                ready = progress.Value.Ready,
+                total = progress.Value.Total,
+            });
+    }
+
+    /// <summary>Revanche: o anfitrião reseta a sala encerrada de volta ao lobby
+    /// (novos times, novo seed) sem ninguém precisar recriar/entrar de novo.</summary>
+    public async Task PlayAgain(string code)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.ResetForRematchAsync(code, UserId);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
     /// <summary>Modo espectador ("acompanhar campeonato"): devolve ao chamador o
     /// log de uma partida da rodada corrente — usado por eliminados para seguir
     /// um time humano ainda vivo.</summary>

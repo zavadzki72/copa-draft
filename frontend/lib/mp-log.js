@@ -95,5 +95,15 @@
     return { eliminated, stage, aliveHumans };
   }
 
-  window.MPLOG = { flipLog, teamInfo, findFixtureSide, fixtureOfTeam, eliminationInfo };
+  /* full player objects from the shared pool, by id (lazy index) */
+  let byId = null;
+  function playerById(id) {
+    if (!byId) {
+      byId = new Map();
+      (window.SQUADS || []).forEach(sq => sq.players.forEach(p => byId.set(p.id, p)));
+    }
+    return byId.get(id) || null;
+  }
+
+  window.MPLOG = { flipLog, teamInfo, findFixtureSide, fixtureOfTeam, eliminationInfo, playerById };
 })();
