@@ -91,6 +91,19 @@ ok('findFixtureSide: acha em grupo', MPLOG.findFixtureSide(snap, 'gA-r0-0', 'awa
 ok('findFixtureSide: acha no bracket', MPLOG.findFixtureSide(snap, 'final-0', 'home') === 'h:u1');
 ok('findFixtureSide: desconhecido -> null', MPLOG.findFixtureSide(snap, 'nope', 'home') === null);
 
+// ============ mp-log: isFixturePlayed (bug: "rever" antes de jogar) ============
+const playSnap = {
+  groups: [{ label: 'A', teams: [], fixtures: [{ fixtureId: 'gA-r0-0', played: false }] }],
+  bracket: [{ roundId: 'semi', ties: [{ tieId: 'semi-0', played: true }] }],
+};
+ok('isFixturePlayed: partida futura -> false (sem "rever" na rodada 1)',
+  MPLOG.isFixturePlayed(playSnap, 'gA-r0-0') === false);
+playSnap.groups[0].fixtures[0].played = true;
+ok('isFixturePlayed: depois de jogada -> true', MPLOG.isFixturePlayed(playSnap, 'gA-r0-0') === true);
+ok('isFixturePlayed: acha no bracket', MPLOG.isFixturePlayed(playSnap, 'semi-0') === true);
+ok('isFixturePlayed: desconhecido/null -> false',
+  MPLOG.isFixturePlayed(playSnap, 'nope') === false && MPLOG.isFixturePlayed(null, 'x') === false);
+
 // ============ mp-log: fixtureOfTeam / eliminationInfo ============
 const roundInfo = { fixtures: [{ fixtureId: 'oitavas-0', homeId: 'h:u1', awayId: 'ai:x' }] };
 ok('fixtureOfTeam: acha a partida do time na rodada', MPLOG.fixtureOfTeam(roundInfo, 'h:u1').fixtureId === 'oitavas-0');

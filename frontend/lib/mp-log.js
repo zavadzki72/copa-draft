@@ -53,6 +53,21 @@
     return null;
   }
 
+  /* a partida (grupo ou mata-mata) já foi jogada? — usado pra só oferecer
+     "rever" depois que ela de fato aconteceu (#bug: banner na rodada 1) */
+  function isFixturePlayed(snap, fixtureId) {
+    if (!snap || !fixtureId) return false;
+    for (const g of snap.groups) {
+      const f = g.fixtures.find(x => x.fixtureId === fixtureId);
+      if (f) return !!f.played;
+    }
+    for (const r of snap.bracket) {
+      const t = r.ties.find(x => x.tieId === fixtureId);
+      if (t) return !!t.played;
+    }
+    return false;
+  }
+
   /* the current-round fixture a team is playing (or null) */
   function fixtureOfTeam(currentRound, teamId) {
     if (!currentRound || !teamId) return null;
@@ -105,5 +120,5 @@
     return byId.get(id) || null;
   }
 
-  window.MPLOG = { flipLog, teamInfo, findFixtureSide, fixtureOfTeam, eliminationInfo, playerById };
+  window.MPLOG = { flipLog, teamInfo, findFixtureSide, isFixturePlayed, fixtureOfTeam, eliminationInfo, playerById };
 })();

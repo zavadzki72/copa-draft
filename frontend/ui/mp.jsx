@@ -291,7 +291,7 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
           <span className="lab">Sua partida está rolando</span>
           <button className="btn btn-yellow" onClick={onWatch}>▶ Assistir minha partida</button>
         </div>
-      ) : yourMatch && !elim.eliminated ? (
+      ) : yourMatch && !elim.eliminated && window.MPLOG.isFixturePlayed(snap, yourMatch.fixtureId) ? (
         <div className="mp-yourmatch setcard">
           <span className="lab">Última partida encerrada</span>
           <button className="btn btn-ghost" onClick={onWatch}>↺ Rever minha última partida</button>
