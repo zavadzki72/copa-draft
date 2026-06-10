@@ -71,6 +71,20 @@ function FormationSelect({ options, value, onChange }) {
   );
 }
 
+function MpButton({ hero, onClick }) {
+  return (
+    <button className={`btn btn-ghost${hero ? ' btn-hero' : ''}`} onClick={onClick}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+      Multiplayer Online
+    </button>
+  );
+}
+
 function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo, onMultiplayer }) {
   const t = (k, v) => window.I18N.t(k, v);
   const fHint = { '4-3-3': 'fOfensivo', '4-4-2': 'fEquilibrado', '3-5-2': 'fAlas', '4-5-1': 'fCauteloso', '5-3-2': 'fDefensivo', '3-4-3': 'fOusado' };
@@ -85,29 +99,30 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
 
       <div className="dice-wrap">
         <Die value={5} rolling={false} />
-        {canResume && (
-          <button className="btn btn-yellow" style={{ fontSize: 17, padding: '15px 38px' }} onClick={onResume}>
-            {t('ui.home.resume')}
+        <div className="home-cta-row">
+          {canResume && (
+            <button className="btn btn-yellow btn-hero" onClick={onResume}>
+              {t('ui.home.resume')}
+            </button>
+          )}
+          <button className={`btn ${canResume ? 'btn-ghost' : 'btn-green'} btn-hero`} onClick={onStart}>
+            🎲 {canResume ? t('ui.home.startNew') : t('ui.home.startDraft')}
           </button>
-        )}
-        <button className={`btn ${canResume ? 'btn-ghost' : 'btn-green'}`} style={{ fontSize: 17, padding: '15px 38px' }} onClick={onStart}>
-          🎲 {canResume ? t('ui.home.startNew') : t('ui.home.startDraft')}
-        </button>
-        {onMultiplayer && (
-          <button className="btn btn-ghost" style={{ fontSize: 15 }} onClick={onMultiplayer}>
-            🌐 Multiplayer Online
-          </button>
-        )}
-        {onHowTo && (
-          <button className="btn btn-ghost howto-cta" onClick={onHowTo}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"></path>
-              <line x1="12" y1="17" x2="12" y2="17"></line>
-            </svg>
-            {t('ui.home.howto')}
-          </button>
-        )}
+          {!canResume && onMultiplayer && <MpButton hero onClick={onMultiplayer} />}
+        </div>
+        <div className="home-cta-row">
+          {canResume && onMultiplayer && <MpButton onClick={onMultiplayer} />}
+          {onHowTo && (
+            <button className="btn btn-ghost" onClick={onHowTo}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"></path>
+                <line x1="12" y1="17" x2="12" y2="17"></line>
+              </svg>
+              {t('ui.home.howto')}
+            </button>
+          )}
+        </div>
         {profile && profile.plays > 0 && (
           <span className="home-stats">{t('ui.home.stats', { plays: profile.plays, titles: profile.titles, ach: (profile.achievements || []).length, total: window.ACHIEVEMENTS.LIST.length })}</span>
         )}
