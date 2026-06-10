@@ -4,12 +4,28 @@
    backend owns lobby, draft deadline and the tournament; this UI
    renders what the server streams (SignalR) and reuses the solo
    components (DraftScreen, MatchScreen, tables) wherever possible.
-   Strings are PT-only in the MVP (decision documented in the PLAN).
+   UI strings come from I18N (mp.*); the server-side narration of the
+   ticker stays PT (engine limitation documented in the PLAN).
    ============================================================ */
-// MVP: multiplayer é PT-BR (i18n fica para um follow-up).
 // Helpers puros (espelho de log, resolução de times no snapshot) vivem em
 // lib/mp-log.js (window.MPLOG) para serem testáveis em Node.
 const mpTeamInfo = (snap, teamId) => window.MPLOG.teamInfo(snap, teamId);
+const t = (k, v) => window.I18N.t(k, v);
+
+// rótulo de rodada traduzido: mata-mata resolve pelo dicionário de rounds
+// (o label do servidor É o id: 'oitavas'…); fase de grupos extrai o número
+// do label PT do servidor ("Rodada N")
+const mpRoundLabel = (info) => {
+  if (!info) return '';
+  if (info.kind === 'knockout') return window.roundText({ id: info.label }, 'label');
+  const m = /(\d+)/.exec(info.label || '');
+  return m ? t('ui.group.calRound', { n: m[1] }) : (info.label || '');
+};
+
+// fase do torneio (valores do servidor em PT) -> rótulo traduzido
+const mpPhaseLabel = (ph) =>
+  ({ grupos: t('mp.phase.grupos'), 'mata-mata': t('mp.phase.mataMata'), encerrada: t('mp.phase.encerrada') }[ph]
+    || String(ph || '').toUpperCase());
 
 /* um grupo (tabela + calendário) — usado na tela principal (só o MEU grupo)
    e no modal "todos os grupos" (#6) */
@@ -17,11 +33,11 @@ function MpGroupBlock({ snap, g, myTeamId }) {
   return (
     <div className="mp-group">
       <div className="shead" style={{ margin: '20px 0 10px' }}>
-        <span className="tok">GRUPO {g.label}</span>
+        <span className="tok">{t('mp.t.group', { label: g.label })}</span>
       </div>
       <div className="group-table" role="table">
         <div className="gt-row gt-head" role="row">
-          <span className="gt-pos"></span><span className="gt-team">Seleção</span>
+          <span className="gt-pos"></span><span className="gt-team">{t('ui.group.team')}</span>
           <span>P</span><span>J</span><span>V</span><span>E</span><span>D</span>
           <span>GP</span><span>GC</span><span>SG</span>
         </div>
@@ -40,11 +56,11 @@ function MpGroupBlock({ snap, g, myTeamId }) {
       <div className="group-cal" style={{ marginTop: 8 }}>
         {[0, 1, 2].map(r => (
           <div className="gcal-round" key={r}>
-            <div className="gcal-rlabel">Rodada {r + 1}</div>
+            <div className="gcal-rlabel">{t('ui.group.calRound', { n: r + 1 })}</div>
             {g.fixtures.filter(f => f.round === r).map(f => (
               <div className={`gcal-fx ${[f.homeId, f.awayId].includes(myTeamId) ? 'mine' : ''}`} key={f.fixtureId}>
                 <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> <MpTeamName snap={snap} id={f.homeId} /></span>
-                <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : 'a jogar'}</span>
+                <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : t('mp.t.toPlay')}</span>
                 <span className="gcal-a"><MpTeamName snap={snap} id={f.awayId} /> <MpMark snap={snap} id={f.awayId} /></span>
               </div>
             ))}
@@ -94,12 +110,12 @@ function MpLogin({ onDone, onExit }) {
     // desistir, em vez de falhar de cara.
     let tries = 0;
     const tryRender = () => window.MPAUTH.renderGoogleButton(btnRef.current, (session, e) => {
-      if (session) onDone(session); else setErr(e ? e.message : 'Falha no login.');
+      if (session) onDone(session); else setErr(e ? e.message : t('mp.err.login'));
     });
     if (tryRender()) return;
     const iv = setInterval(() => {
       if (tryRender()) { clearInterval(iv); setErr(null); return; }
-      if (++tries >= 20) { clearInterval(iv); setErr('Login do Google indisponível. Recarregue a página.'); }
+      if (++tries >= 20) { clearInterval(iv); setErr(t('mp.err.googleDown')); }
     }, 400);
     return () => clearInterval(iv);
   }, []);
@@ -111,27 +127,25 @@ function MpLogin({ onDone, onExit }) {
   }
   return (
     <div className="stage narrow screen-fade mp-center">
-      <span className="tok">MULTIPLAYER ONLINE</span>
-      <h2>{hasInvite ? 'Você foi convidado!' : 'Jogue a Copa com seus amigos'}</h2>
-      <p className="sub">{hasInvite
-        ? 'Diga seu nome e entre na sala — ou use sua conta Google.'
-        : 'Crie uma sala, mande o convite, cada um monta seu time — e o torneio rola ao vivo, com todos em grupos diferentes até se cruzarem no mata-mata.'}</p>
+      <span className="tok">{t('mp.tok')}</span>
+      <h2>{hasInvite ? t('mp.login.invitedTitle') : t('mp.login.title')}</h2>
+      <p className="sub">{hasInvite ? t('mp.login.invitedSub') : t('mp.login.sub')}</p>
 
       <div className="mp-guest-row">
         <input className="mp-input mp-input-name" value={guestName} maxLength={30}
-          placeholder="Seu nome" onChange={e => setGuestName(e.target.value)}
+          placeholder={t('mp.login.namePh')} onChange={e => setGuestName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && guestName.trim().length >= 2) enterAsGuest(); }} />
         <button className="btn btn-yellow" disabled={busy || guestName.trim().length < 2} onClick={enterAsGuest}>
-          🎟 Entrar como convidado
+          {t('mp.login.guestBtn')}
         </button>
       </div>
-      <p className="p mp-hint">Convidados entram em salas existentes. Para <strong>criar</strong> uma sala, use o Google:</p>
+      <p className="p mp-hint">{t('mp.login.hint1')} <strong>{t('mp.login.hintCreate')}</strong> {t('mp.login.hint2')}</p>
 
       {cid
         ? <div ref={btnRef} className="mp-google-btn" />
-        : <p className="mp-error">⚠ Login Google não configurado (CONFIG.MP.GOOGLE_CLIENT_ID).</p>}
+        : <p className="mp-error">{t('mp.err.googleCfg')}</p>}
       {err && <p className="mp-error">{err}</p>}
-      <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
+      <button className="btn btn-ghost" onClick={onExit}>{t('mp.back')}</button>
     </div>
   );
 }
@@ -141,33 +155,33 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   const guest = !!user.guest;
   return (
     <div className="stage narrow screen-fade mp-center">
-      <span className="tok">MULTIPLAYER ONLINE</span>
-      <h2>Olá, {user.name.split(' ')[0]}!{guest ? ' 🎟' : ''}</h2>
+      <span className="tok">{t('mp.tok')}</span>
+      <h2>{t('mp.menu.hello', { name: user.name.split(' ')[0] })}{guest ? ' 🎟' : ''}</h2>
       <div className="setgrid mp-menu">
         <div className="setcard">
-          <span className="lab">Criar sala</span>
+          <span className="lab">{t('mp.menu.createLab')}</span>
           {guest ? (
-            <p className="p">Convidados não criam salas — entre com o Google para ser o anfitrião.</p>
+            <p className="p">{t('mp.menu.createGuest')}</p>
           ) : (
-            <p className="p">Você vira o anfitrião e recebe um código para convidar os amigos.</p>
+            <p className="p">{t('mp.menu.createHint')}</p>
           )}
-          <button className="btn btn-green" disabled={busy || guest} onClick={onCreate}>➕ Criar sala</button>
+          <button className="btn btn-green" disabled={busy || guest} onClick={onCreate}>{t('mp.menu.createBtn')}</button>
         </div>
         <div className="setcard">
-          <span className="lab">Entrar numa sala</span>
-          <p className="p">Recebeu um convite? Cole o código aqui.</p>
+          <span className="lab">{t('mp.menu.joinLab')}</span>
+          <p className="p">{t('mp.menu.joinHint')}</p>
           <div className="mp-join-row">
             <input className="mp-input" value={code} maxLength={6}
-              placeholder="CÓDIGO" onChange={e => setCode(e.target.value.toUpperCase())} />
+              placeholder={t('mp.menu.codePh')} onChange={e => setCode(e.target.value.toUpperCase())} />
             <button className="btn btn-yellow" disabled={busy || code.length < 6}
-              onClick={() => onJoin(code)}>Entrar</button>
+              onClick={() => onJoin(code)}>{t('mp.menu.joinBtn')}</button>
           </div>
         </div>
       </div>
       {error && <p className="mp-error">{error}</p>}
       <div className="mp-foot">
-        <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
-        <button className="btn btn-ghost" onClick={onLogout}>Sair da conta</button>
+        <button className="btn btn-ghost" onClick={onExit}>{t('mp.back')}</button>
+        <button className="btn btn-ghost" onClick={onLogout}>{t('mp.menu.logout')}</button>
       </div>
     </div>
   );
@@ -187,30 +201,31 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
     <div className="stage narrow screen-fade">
       <div className="shead">
         <div>
-          <span className="tok">SALA · LOBBY</span>
-          <h2 style={{ marginTop: 4 }}>Convide os amigos</h2>
+          <span className="tok">{t('mp.lobby.tok')}</span>
+          <h2 style={{ marginTop: 4 }}>{t('mp.lobby.title')}</h2>
         </div>
-        <span className="meta">{room.players.length}/{room.maxPlayers} jogadores</span>
+        <span className="meta">{t('mp.lobby.players', { n: room.players.length, max: room.maxPlayers })}</span>
       </div>
 
       <div className="mp-invite setcard">
-        <span className="lab">Código da sala</span>
+        <span className="lab">{t('mp.lobby.codeLab')}</span>
         <div className="mp-code">{room.code}</div>
-        <button className="btn btn-ghost" onClick={copy}>{copied ? '✓ Copiado!' : '📋 Copiar link de convite'}</button>
+        <button className="btn btn-ghost" onClick={copy}>{copied ? t('mp.lobby.copied') : t('mp.lobby.copy')}</button>
       </div>
 
       <div className="setcard mp-speed">
-        <span className="lab">Velocidade das partidas</span>
+        <span className="lab">{t('mp.lobby.speedLab')}</span>
         {isHost ? (
           <Segmented value={room.speed} onChange={onSpeed} options={[
-            { id: 'normal', label: 'Normal', hint: '~34s' },
-            { id: 'rapido', label: 'Rápida', hint: '~22s' },
-            { id: 'super', label: 'Super', hint: '~11s' },
+            { id: 'normal', label: t('mp.lobby.speedNormal'), hint: '~34s' },
+            { id: 'rapido', label: t('mp.lobby.speedFast'), hint: '~22s' },
+            { id: 'super', label: t('mp.lobby.speedSuper'), hint: '~11s' },
           ]} />
         ) : (
           <p className="p mp-speed-view">
-            {{ normal: 'Normal (~34s)', rapido: 'Rápida (~22s)', super: 'Super (~11s)' }[room.speed] || room.speed}
-            <span className="mp-hint"> · definida pelo anfitrião 👑</span>
+            {(sp => sp ? `${t('mp.lobby.' + sp[0])} (${sp[1]})` : room.speed)(
+              { normal: ['speedNormal', '~34s'], rapido: ['speedFast', '~22s'], super: ['speedSuper', '~11s'] }[room.speed])}
+            <span className="mp-hint">{t('mp.lobby.byHost')}</span>
           </p>
         )}
       </div>
@@ -220,25 +235,25 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
           <div className={`mp-player ${p.userId === meId ? 'me' : ''}`} key={p.userId}>
             {p.avatar ? <img className="mp-avatar" src={p.avatar} alt="" referrerPolicy="no-referrer" /> : <Crest className="cr-inline" />}
             <span className="mp-pname">{p.name}{p.isHost ? ' 👑' : ''}</span>
-            <span className={`mp-presence ${p.presence}`}>{p.presence === 'conectado' ? '' : p.presence === 'ia' ? '🤖 IA' : '⌀ saiu'}</span>
-            <span className={`mp-ready ${p.ready ? 'on' : ''}`}>{p.ready ? '✓ pronto' : 'aguardando'}</span>
+            <span className={`mp-presence ${p.presence}`}>{p.presence === 'conectado' ? '' : p.presence === 'ia' ? t('mp.lobby.ia') : t('mp.lobby.left')}</span>
+            <span className={`mp-ready ${p.ready ? 'on' : ''}`}>{p.ready ? t('mp.lobby.ready') : t('mp.lobby.waiting')}</span>
           </div>
         ))}
       </div>
 
       {error && <p className="mp-error">{error}</p>}
       <div className="mp-foot">
-        <button className="btn btn-ghost" onClick={onLeave}>← Sair da sala</button>
+        <button className="btn btn-ghost" onClick={onLeave}>{t('mp.lobby.leave')}</button>
         <button className={`btn ${me && me.ready ? 'btn-ghost' : 'btn-yellow'}`} onClick={() => onReady(!(me && me.ready))}>
-          {me && me.ready ? 'Desmarcar pronto' : '✓ Estou pronto'}
+          {me && me.ready ? t('mp.lobby.unready') : t('mp.lobby.imReady')}
         </button>
         {isHost && (
           <button className="btn btn-green" disabled={room.players.length < 2} onClick={onStart}>
-            🚀 Iniciar ({readyCount}/{room.players.length} prontos)
+            {t('mp.lobby.start', { ready: readyCount, total: room.players.length })}
           </button>
         )}
       </div>
-      {isHost && room.players.length < 2 && <p className="p mp-hint">Convide pelo menos mais 1 amigo para iniciar.</p>}
+      {isHost && room.players.length < 2 && <p className="p mp-hint">{t('mp.lobby.inviteMore')}</p>}
     </div>
   );
 }
@@ -264,7 +279,7 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
 
   // eliminação + humanos vivos (pra acompanhar)
   const elim = window.MPLOG.eliminationInfo(snap, myTeamId);
-  const stageLabel = elim.stage === 'grupos' ? 'fase de grupos'
+  const stageLabel = elim.stage === 'grupos' ? t('mp.t.groupStageLower')
     : elim.stage ? window.roundText({ id: elim.stage }, 'label') : null;
   const followFixture = follow ? window.MPLOG.fixtureOfTeam(roundInfo, follow) : null;
   const followAlive = follow && elim.aliveHumans.some(h => h.id === follow);
@@ -273,16 +288,16 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
     <div className="stage narrow screen-fade">
       <div className="shead">
         <div>
-          <span className="tok">TORNEIO DA SALA · {phase.toUpperCase()}</span>
+          <span className="tok">{t('mp.t.tok')} · {mpPhaseLabel(phase)}</span>
           <h2 style={{ marginTop: 4 }}>
             {phase === 'encerrada'
-              ? (iAmChampion ? '🏆 Você é o campeão!' : `🏆 Campeão: ${champion ? teamName(champion) : '—'}`)
-              : roundInfo ? `${roundInfo.label} em andamento` : 'Aguardando próxima rodada…'}
+              ? (iAmChampion ? t('mp.t.youChampion') : t('mp.t.champion', { name: champion ? teamName(champion) : '—' }))
+              : roundInfo ? t('mp.t.inProgress', { label: mpRoundLabel(roundInfo) }) : t('mp.t.waitingNext')}
           </h2>
         </div>
-        {roundInfo && phase !== 'encerrada' && !announcing && <span className="meta">⏱ minuto {minute || 0}</span>}
+        {roundInfo && phase !== 'encerrada' && !announcing && <span className="meta">{t('mp.t.minute', { m: minute || 0 })}</span>}
         {phase === 'encerrada' && onBackToEnd && (
-          <button className="btn btn-yellow" onClick={onBackToEnd}>🏁 Resultado final</button>
+          <button className="btn btn-yellow" onClick={onBackToEnd}>{t('mp.t.finalResult')}</button>
         )}
       </div>
 
@@ -291,16 +306,16 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
         <div className="mp-yourmatch setcard">
           {myCurrentFixture && !advanced ? (
             <>
-              <span className="lab">⚽ {roundInfo.label}: sua partida está montada</span>
+              <span className="lab">{t('mp.t.matchReady', { label: mpRoundLabel(roundInfo) })}</span>
               <div className="mp-advance-row">
-                <button className="btn btn-green" onClick={onAdvance}>▶ Avançar para o pré-jogo</button>
+                <button className="btn btn-green" onClick={onAdvance}>{t('mp.t.advance')}</button>
                 <MpTimer deadline={roundInfo.readyDeadline} />
               </div>
-              <p className="p mp-hint">Se o tempo zerar, a rodada começa automaticamente.</p>
+              <p className="p mp-hint">{t('mp.t.autoStart')}</p>
             </>
           ) : (
             <>
-              <span className="lab">⏳ {roundInfo.label}: jogadores confirmando
+              <span className="lab">{t('mp.t.confirming', { label: mpRoundLabel(roundInfo) })}
                 {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</span>
               <div className="mp-advance-row"><MpTimer deadline={roundInfo.readyDeadline} /></div>
             </>
@@ -311,14 +326,14 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
       {/* eliminado: feedback + acompanhar campeonato */}
       {elim.eliminated && phase !== 'encerrada' && (
         <div className="mp-elim setcard">
-          <span className="lab">⛔ Você foi eliminado{stageLabel ? ` — ${stageLabel}` : ''}</span>
+          <span className="lab">{t('mp.t.eliminated')}{stageLabel ? ` — ${stageLabel}` : ''}</span>
           {follow && followAlive ? (
-            <p className="p">Acompanhando <strong>{teamName(follow)}</strong>.{' '}
-              <a className="mp-link" onClick={() => setShowPicker(true)}>trocar</a></p>
+            <p className="p">{t('mp.t.followingPre')} <strong>{teamName(follow)}</strong>.{' '}
+              <a className="mp-link" onClick={() => setShowPicker(true)}>{t('mp.t.change')}</a></p>
           ) : follow && !followAlive ? (
-            <p className="p"><strong>{teamName(follow)}</strong> também caiu — escolha outro time.</p>
+            <p className="p"><strong>{teamName(follow)}</strong> {t('mp.t.fellToo')}</p>
           ) : (
-            <p className="p">O torneio continua — acompanhe a campanha de outro jogador.</p>
+            <p className="p">{t('mp.t.followCta')}</p>
           )}
           {(!follow || !followAlive || showPicker) && (
             elim.aliveHumans.length > 0 ? (
@@ -331,7 +346,7 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
                 ))}
               </div>
             ) : (
-              <p className="p mp-hint">Nenhum jogador humano segue vivo — só IAs até a final.</p>
+              <p className="p mp-hint">{t('mp.t.noHumans')}</p>
             )
           )}
         </div>
@@ -340,17 +355,17 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
       {/* minha partida rolando agora */}
       {phase !== 'encerrada' && myMatchLive && (
         <div className="mp-yourmatch setcard">
-          <span className="lab">Sua partida está rolando</span>
-          <button className="btn btn-yellow" onClick={onWatch}>▶ Assistir minha partida</button>
+          <span className="lab">{t('mp.t.yourLive')}</span>
+          <button className="btn btn-yellow" onClick={onWatch}>{t('mp.t.watchMine')}</button>
         </div>
       )}
 
       {/* partida do time acompanhado (só com a rodada em andamento de verdade) */}
       {follow && followAlive && followFixture && !announcing && phase !== 'encerrada' && (
         <div className="mp-yourmatch setcard">
-          <span className="lab">Partida de {teamName(follow)} está rolando</span>
+          <span className="lab">{t('mp.t.followLive', { name: teamName(follow) })}</span>
           <button className="btn btn-yellow" onClick={() => onSpectate(followFixture.fixtureId)}>
-            ▶ Assistir
+            {t('mp.t.watch')}
           </button>
         </div>
       )}
@@ -362,18 +377,18 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
       })()}
 
       <div className="mp-foot" style={{ marginTop: 10 }}>
-        <button className="btn btn-ghost" onClick={() => setShowGroups(true)}>🗂 Ver todos os grupos</button>
+        <button className="btn btn-ghost" onClick={() => setShowGroups(true)}>{t('mp.t.allGroups')}</button>
       </div>
 
       {showGroups && Modal && (
-        <Modal title="Todos os grupos" eyebrow="FASE DE GRUPOS" wide onClose={() => setShowGroups(false)}>
+        <Modal title={t('mp.t.modalTitle')} eyebrow={t('mp.t.modalEyebrow')} wide onClose={() => setShowGroups(false)}>
           {snap.groups.map(g => <MpGroupBlock key={g.label} snap={snap} g={g} myTeamId={myTeamId} />)}
         </Modal>
       )}
 
       {snap.bracket.length > 0 && (
         <div className="mp-bracket">
-          <div className="shead" style={{ margin: '24px 0 10px' }}><span className="tok">MATA-MATA</span></div>
+          <div className="shead" style={{ margin: '24px 0 10px' }}><span className="tok">{t('mp.t.bracket')}</span></div>
           {snap.bracket.map(round => (
             <div key={round.roundId} className="gcal-round" style={{ marginBottom: 10 }}>
               <div className="gcal-rlabel">{window.roundText({ id: round.roundId }, 'label')}</div>
@@ -383,7 +398,7 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
                   <span className="gcal-sc">
                     {tie.played
                       ? `${tie.homeGoals} – ${tie.awayGoals}${tie.pensHome != null ? ` (${tie.pensHome}–${tie.pensAway} pen)` : ''}`
-                      : 'a jogar'}
+                      : t('mp.t.toPlay')}
                   </span>
                   <span className="gcal-a"><MpTeamName snap={snap} id={tie.awayId} /> <MpMark snap={snap} id={tie.awayId} /></span>
                 </div>
@@ -405,29 +420,26 @@ function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
   const elim = window.MPLOG.eliminationInfo(snap, myTeamId);
   const stageIcons = { final: '🥈', semi: '🥉' };
   const emoji = iAmChampion ? '🏆' : (stageIcons[elim.stage] || '⚽');
-  const stageLabel = elim.stage === 'grupos' ? 'na fase de grupos'
-    : elim.stage ? `em ${window.roundText({ id: elim.stage }, 'label')}` : '';
-  const title = iAmChampion ? 'CAMPEÃO DA SALA!'
-    : elim.stage === 'final' ? 'Vice-campeão!'
-    : `Você caiu ${stageLabel}`;
+  const title = iAmChampion ? t('mp.end.champTitle')
+    : elim.stage === 'final' ? t('mp.end.viceTitle')
+    : elim.stage === 'grupos' || !elim.stage ? t('mp.end.fellGroups')
+    : t('mp.end.fellAt', { round: window.roundText({ id: elim.stage }, 'label') });
 
   return (
     <div className="stage narrow screen-fade mp-center">
       <div className="mp-end-hero">
         <div className="mp-end-emoji">{emoji}</div>
-        <span className="tok">TORNEIO ENCERRADO</span>
+        <span className="tok">{t('mp.end.tok')}</span>
         <h2>{title}</h2>
-        {!iAmChampion && <p className="sub">Campeão da sala: <strong>{champion ? mpTeamInfo(snap, champion).name : '—'}</strong></p>}
-        <p className="sub">{iAmChampion
-          ? 'Seu time dos sonhos levou a taça contra seus amigos. Respeito eterno no grupo.'
-          : 'Confira a campanha completa — ou jogue de novo pra buscar a forra.'}</p>
+        {!iAmChampion && <p className="sub">{t('mp.end.championLine')} <strong>{champion ? mpTeamInfo(snap, champion).name : '—'}</strong></p>}
+        <p className="sub">{iAmChampion ? t('mp.end.champSub') : t('mp.end.fellSub')}</p>
       </div>
       <div className="mp-foot">
-        <button className="btn btn-ghost" onClick={onBackToTables}>📊 Ver campanha</button>
+        <button className="btn btn-ghost" onClick={onBackToTables}>{t('mp.end.seeCampaign')}</button>
         {isHost
-          ? <button className="btn btn-green" onClick={onPlayAgain}>🔁 Jogar novamente</button>
-          : <span className="p mp-hint">O anfitrião pode iniciar uma revanche 🔁</span>}
-        <button className="btn btn-ghost" onClick={onExit}>← Sair da sala</button>
+          ? <button className="btn btn-green" onClick={onPlayAgain}>{t('mp.end.playAgain')}</button>
+          : <span className="p mp-hint">{t('mp.end.hostRematch')}</span>}
+        <button className="btn btn-ghost" onClick={onExit}>{t('mp.lobby.leave')}</button>
       </div>
     </div>
   );
@@ -571,7 +583,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
         setStage('tournament');
       } else setStage('lobby');
     } catch (e) {
-      setError(e.message || 'Não foi possível entrar na sala.');
+      setError(e.message || t('mp.err.join'));
     } finally { setBusy(false); }
   }
 
@@ -583,7 +595,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       await window.MPRT.invoke('JoinRoom', created.code);
       setStage('lobby');
     } catch (e) {
-      setError(e.message || 'Não foi possível criar a sala.');
+      setError(e.message || t('mp.err.create'));
     } finally { setBusy(false); }
   }
 
@@ -608,7 +620,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
         captainId: starId,
       });
       setStage('draft-wait');
-    } catch (e) { setError(e.message || 'Falha ao enviar o time.'); }
+    } catch (e) { setError(e.message || t('mp.err.submit')); }
   }
 
   // ---- render por estágio ----
@@ -634,19 +646,18 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
 
   if (stage === 'draft') {
     if (!formationChosen) {
-      const fHint = { '4-3-3': 'fOfensiva', '4-4-2': 'fEquilibrado', '3-5-2': 'fMeio', '4-5-1': 'fDefensiva', '5-3-2': 'fRetranca', '3-4-3': 'fLouca' };
       const opts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id }));
       return (
         <div className="stage narrow screen-fade mp-center">
           <div className="mp-draft-head">
-            <span className="tok">DRAFT MULTIPLAYER</span>
+            <span className="tok">{t('mp.draft.tok')}</span>
             {deadline && <MpTimer deadline={deadline} />}
           </div>
-          <h2>Escolha sua formação</h2>
-          <p className="sub">Todos estão montando seus times agora. Quem não terminar a tempo recebe um time automático.</p>
+          <h2>{t('mp.draft.chooseTitle')}</h2>
+          <p className="sub">{t('mp.draft.chooseSub')}</p>
           <FormationSelect value={formation} onChange={setFormation} options={opts} />
           <button className="btn btn-green" style={{ marginTop: 18 }} onClick={() => setFormationChosen(true)}>
-            🎲 Começar o draft
+            {t('mp.draft.start')}
           </button>
         </div>
       );
@@ -654,9 +665,9 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     return (
       <div>
         <div className="mp-draft-head stage narrow">
-          <span className="tok">DRAFT MULTIPLAYER</span>
+          <span className="tok">{t('mp.draft.tok')}</span>
           {deadline && <MpTimer deadline={deadline} />}
-          {progress && <span className="meta">{progress.submitted}/{progress.total} times enviados</span>}
+          {progress && <span className="meta">{t('mp.draft.submitted', { done: progress.submitted, total: progress.total })}</span>}
         </div>
         <DraftScreen formation={formation} mode="classico" sfx={sfx} onConfirm={confirmDraft} />
       </div>
@@ -666,10 +677,10 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   if (stage === 'draft-wait')
     return (
       <div className="stage narrow screen-fade mp-center">
-        <span className="tok">DRAFT MULTIPLAYER</span>
-        <h2>Time enviado! ✓</h2>
-        <p className="sub">Aguardando os outros jogadores{progress ? ` (${progress.submitted}/${progress.total})` : ''}…
-          O torneio começa assim que todos terminarem (ou o tempo acabar).</p>
+        <span className="tok">{t('mp.draft.tok')}</span>
+        <h2>{t('mp.draft.sentTitle')}</h2>
+        <p className="sub">{t('mp.draft.waitingOthers')}{progress ? ` (${progress.submitted}/${progress.total})` : ''}…
+          {' '}{t('mp.draft.startsWhenDone')}</p>
         {deadline && <MpTimer deadline={deadline} />}
       </div>
     );
@@ -678,7 +689,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   const mpRound = () => {
     const info = (snap && snap.currentRound) || lastRoundRef.current;
     if (info && info.kind === 'knockout') return { id: info.label };
-    return { stage: 'group', label: info ? info.label : 'Fase de grupos' };
+    return { stage: 'group', label: info ? mpRoundLabel(info) : t('mp.t.groupStage') };
   };
   const mpPace = () => {
     const info = (snap && snap.currentRound) || lastRoundRef.current;
@@ -695,9 +706,9 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     if (clickedRound === roundKey) {
       return (
         <div className="stage narrow screen-fade mp-center">
-          <span className="tok">{rInfo.label.toUpperCase()}</span>
-          <h2>Pronto! ✓</h2>
-          <p className="sub">Aguardando os outros jogadores
+          <span className="tok">{mpRoundLabel(rInfo).toUpperCase()}</span>
+          <h2>{t('mp.pre.readyTitle')}</h2>
+          <p className="sub">{t('mp.draft.waitingOthers')}
             {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</p>
           <MpTimer deadline={rInfo.readyDeadline} />
         </div>
@@ -716,7 +727,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     return (
       <div>
         <div className="mp-draft-head stage narrow">
-          <span className="tok">PRÉ-JOGO · {rInfo.label.toUpperCase()}</span>
+          <span className="tok">{t('mp.pre.tok')} · {mpRoundLabel(rInfo).toUpperCase()}</span>
           <MpTimer deadline={rInfo.readyDeadline} />
         </div>
         <PreMatchScreen me={{ name: session.user.name, dream: true }}
@@ -785,10 +796,10 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   if (stage === 'tournament' && roundLive && myFixtureInRound && !watching && !spectMatch) {
     return (
       <div className="stage narrow screen-fade mp-center">
-        <span className="tok">{rInfo.label.toUpperCase()} · EM ANDAMENTO</span>
-        <h2>Partidas rolando — minuto {minute || 0}</h2>
-        <p className="sub">As tabelas e o chaveamento liberam quando a rodada terminar.</p>
-        <button className="btn btn-yellow" onClick={() => setWatching(true)}>▶ Voltar à minha partida</button>
+        <span className="tok">{mpRoundLabel(rInfo).toUpperCase()} · {t('mp.live.tok')}</span>
+        <h2>{t('mp.live.rolling', { m: minute || 0 })}</h2>
+        <p className="sub">{t('mp.live.tablesLater')}</p>
+        <button className="btn btn-yellow" onClick={() => setWatching(true)}>{t('mp.live.backToMatch')}</button>
       </div>
     );
   }
@@ -811,10 +822,10 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   // fallback: conectando…
   return (
     <div className="stage narrow screen-fade mp-center">
-      <span className="tok">MULTIPLAYER</span>
-      <h2>Conectando…</h2>
+      <span className="tok">{t('mp.connTok')}</span>
+      <h2>{t('mp.connecting')}</h2>
       {error && <p className="mp-error">{error}</p>}
-      <button className="btn btn-ghost" onClick={onExit}>← Voltar</button>
+      <button className="btn btn-ghost" onClick={onExit}>{t('mp.back')}</button>
     </div>
   );
 }
