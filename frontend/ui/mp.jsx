@@ -433,23 +433,35 @@ function MultiplayerApp({ sfx, onExit }) {
       window.MPRT.on('WatchMatch', (m) => setSpectMatch(m)),
       window.MPRT.on('RoundReady', (info) => {                 // pré-jogo: aguardando "iniciar partida"
         lastRoundRef.current = info.round;
-        busyWatchingRef.current = false;
         setRoundReady(info);
         setReadyProgress(null);
         setIClickedReady(false);
         setSpectMatch(null);
-        setPostMatch(null);
         setWatching(false);
         setMinute(0);
+        // só interrompe a leitura do pós-jogo de quem VAI JOGAR esta rodada
+        // (eliminados podem terminar de ler as notas em paz)
+        const mine = yourMatchRef.current;
+        if (mine && info.round.fixtures.some(f => f.fixtureId === mine.fixtureId)) {
+          busyWatchingRef.current = false;
+          setPostMatch(null);
+        }
       }),
       window.MPRT.on('RoundReadyProgress', setReadyProgress),
       window.MPRT.on('RoundStarted', (round) => {
         lastRoundRef.current = round;
         setRoundReady(null);
         setMinute(0);
-        // dono do time: entra direto na própria partida quando a rodada abre
+        // dono do time: entra direto na própria partida quando a rodada abre.
+        // Também limpa pós-jogo/espectador antigos — defesa contra evento perdido
+        // (foi exatamente o bug que prendeu o jogador no pós-jogo da rodada 2).
         const mine = yourMatchRef.current;
-        if (mine && round.fixtures.some(f => f.fixtureId === mine.fixtureId)) setWatching(true);
+        if (mine && round.fixtures.some(f => f.fixtureId === mine.fixtureId)) {
+          busyWatchingRef.current = false;
+          setPostMatch(null);
+          setSpectMatch(null);
+          setWatching(true);
+        }
       }),
       window.MPRT.on('MinuteTick', setMinute),
       window.MPRT.on('TournamentFinished', () => { /* snapshot 'encerrada' cuida da UI */ }),

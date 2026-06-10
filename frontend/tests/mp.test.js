@@ -187,6 +187,15 @@ ok('elim: vencedor segue vivo', info.eliminated === false);
   };
   await MPRT.connect();
   ok('rt: conexão registra os eventos no hub', typeof handlers.RoomState === 'function' && typeof handlers.YourMatch === 'function');
+  // regressão: TODO evento que o servidor emite precisa estar registrado no
+  // wrapper — RoundReady fora da lista deixou o pré-jogo invisível e prendeu
+  // o jogador no pós-jogo (bug real de 2026-06-10)
+  const SERVER_EVENTS = ['RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'LobbyError',
+    'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
+    'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished'];
+  const missing = SERVER_EVENTS.filter(e => typeof handlers[e] !== 'function');
+  ok('rt: todos os eventos do servidor estão assinados (' + SERVER_EVENTS.length + ')', missing.length === 0
+    || (console.error('faltando: ' + missing.join(', ')), false));
 
   let got = null;
   const off = MPRT.on('RoomState', (s) => { got = s; });

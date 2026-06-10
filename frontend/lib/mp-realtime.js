@@ -4,10 +4,12 @@
    lobby, draft and tournament events. Subscribers attach via on().
    ============================================================ */
 (function () {
+  // ATENÇÃO: todo evento novo do hub PRECISA entrar nesta lista, senão o
+  // wrapper nunca o entrega aos assinantes (tests/mp.test.js cobre a lista).
   const EVENTS = [
     'RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'LobbyError',
-    'TournamentState', 'RoundStarted', 'YourMatch', 'WatchMatch', 'MinuteTick',
-    'MatchFinished', 'TournamentFinished',
+    'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
+    'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished',
   ];
 
   let conn = null;
