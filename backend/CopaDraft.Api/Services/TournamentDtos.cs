@@ -38,9 +38,12 @@ public sealed record RoundInfoDto(
     int PaceMsPerMinute,
     string Status,         // aguardando (pré-jogo/ready-gate) | rolando (relógio ativo)
     int ReadySeconds,      // timeout do ready-gate (exibição do countdown)
+    DateTimeOffset ReadyDeadline,  // instante-limite do gate (countdown no cliente)
     IReadOnlyList<FixtureRefDto> Fixtures);
 
 public sealed record FixtureRefDto(string FixtureId, string HomeId, string AwayId, int LastMinute);
 
-/// <summary>Private payload: the full log of YOUR match for the ticker.</summary>
-public sealed record YourMatchDto(string FixtureId, string Side, MatchLog Log);
+/// <summary>Private payload: the full log of YOUR match for the ticker —
+/// inclui seus reservas (o log só carrega titulares).</summary>
+public sealed record YourMatchDto(
+    string FixtureId, string Side, MatchLog Log, IReadOnlyList<StarterRef> Bench);

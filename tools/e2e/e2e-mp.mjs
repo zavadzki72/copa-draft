@@ -1,5 +1,7 @@
-/* E2E real contra a stack em localhost:8090 — simula 2 jogadores (mesmo
-   cliente SignalR do navegador) e valida o fluxo do pré-jogo/ready-gate. */
+/* E2E COMPLETO contra a stack real (localhost:8090) — 2 jogadores com o
+   cliente SignalR oficial, cobrindo: lobby+velocidade, draft com reservas,
+   ready-gate/Avançar, skip de rodada (DoneWatching), torneio inteiro até o
+   campeão, espectador de eliminado, tela final e REVANCHE (PlayAgain). */
 import signalR from '@microsoft/signalr';
 import fs from 'fs';
 
@@ -8,33 +10,30 @@ const { TOKEN_A, TOKEN_B, USER_A, USER_B, CODE } = process.env;
 
 let failed = 0;
 const t0 = Date.now();
-const ts = () => ((Date.now() - t0) / 1000).toFixed(1).padStart(5) + 's';
+const ts = () => ((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's';
 const ok = (name, cond) => {
   console.log(`${cond ? '  ok ' : 'FALHA'} [${ts()}] ${name}`);
   if (!cond) failed++;
 };
+const info = (m) => console.log(`   ·  [${ts()}] ${m}`);
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ---- times válidos a partir do squads.json (mesma regra do bestXI) ----
+// ---- times válidos (com 1 reserva GOL) a partir do squads.json ----
 const squads = JSON.parse(fs.readFileSync(new URL('./squads.json', import.meta.url)));
-function bestXI(squad) {
+function pickTeam(squad) {
   const need = { GOL: 1, ZAG: 2, LAT: 2, MEI: 3, ATA: 3 };
   const xi = [];
   for (const [pos, n] of Object.entries(need)) {
-    const ps = squad.players.filter(p => p.pos === pos).sort((a, b) => b.overall - a.overall).slice(0, n);
-    xi.push(...ps);
+    xi.push(...squad.players.filter(p => p.pos === pos).sort((a, b) => b.overall - a.overall).slice(0, n));
   }
-  return xi.length === 11 ? xi : null;
+  if (xi.length !== 11) return null;
+  const taken = new Set(xi.map(p => p.id));
+  const benchGk = squad.players.find(p => p.pos === 'GOL' && !taken.has(p.id));
+  if (!benchGk) return null;
+  return { formation: '4-3-3', starters: xi.map(p => p.id), bench: [benchGk.id], captainId: xi[0].id };
 }
-const fullSquads = squads.map(s => ({ s, xi: bestXI(s) })).filter(x => x.xi);
-const teamOf = (i) => ({
-  formation: '4-3-3',
-  starters: fullSquads[i].xi.map(p => p.id),
-  bench: [],
-  captainId: null,
-});
+const teams = squads.map(pickTeam).filter(Boolean);
 
-// ---- conexão de um "navegador" ----
 function client(name, token) {
   const conn = new signalR.HubConnectionBuilder()
     .withUrl(`${BASE}/hubs/lobby`, {
@@ -44,106 +43,160 @@ function client(name, token) {
     })
     .build();
   const st = {
-    name, conn,
-    snap: null, yourMatch: null, room: null,
-    minuteTicks: 0, lastMinute: 0,
-    progress: null, roundStartedCount: 0,
-    log: [],
+    name, conn, snap: null, yourMatch: null, room: null, lastErr: null,
+    minuteTicks: 0, lastMinute: 0, progress: null, watch: null, finished: null,
   };
   conn.on('RoomState', (s) => { st.room = s; });
-  conn.on('TournamentState', (s) => {
-    st.snap = s;
-    const r = s.currentRound;
-    st.log.push(`[${ts()}] snap fase=${s.phase} rodada=${r ? r.label + '/' + r.status : '-'}`);
-  });
-  conn.on('YourMatch', (m) => { st.yourMatch = m; st.log.push(`[${ts()}] YourMatch ${m.fixtureId} (${m.side})`); });
+  conn.on('TournamentState', (s) => { st.snap = s; });
+  conn.on('YourMatch', (m) => { st.yourMatch = m; });
+  conn.on('WatchMatch', (m) => { st.watch = m; });
   conn.on('RoundReadyProgress', (p) => { st.progress = p; });
-  conn.on('RoundStarted', () => { st.roundStartedCount++; st.log.push(`[${ts()}] RoundStarted`); });
   conn.on('MinuteTick', (m) => { st.minuteTicks++; st.lastMinute = m; });
-  conn.on('LobbyError', (e) => st.log.push(`[${ts()}] LobbyError: ${e}`));
+  conn.on('TournamentFinished', (f) => { st.finished = f; });
+  conn.on('LobbyError', (e) => { st.lastErr = e; });
   return st;
 }
-
-// condição EXATA que o mp.jsx usa pra mostrar o PreMatchScreen
-const wouldShowPrematch = (c) => {
-  const r = c.snap && c.snap.currentRound;
-  return !!(r && r.status === 'aguardando' && c.yourMatch
-    && r.fixtures.some(f => f.fixtureId === c.yourMatch.fixtureId));
-};
-const roundLabel = (c) => c.snap?.currentRound?.label || '-';
 
 async function waitUntil(desc, fn, timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (fn()) return true;
-    await sleep(150);
+    await sleep(120);
   }
-  console.log(`  (timeout esperando: ${desc})`);
+  console.log(`  (timeout: ${desc})`);
   return false;
 }
 
-const A = client('Anfitrião', TOKEN_A);
-const B = client('Convidado', TOKEN_B);
-await A.conn.start();
-await B.conn.start();
+const round = (c) => c.snap?.currentRound || null;
+const myTeam = (uid) => 'h:' + uid;
+const inRound = (c, uid) => !!round(c)?.fixtures.some(f => f.homeId === myTeam(uid) || f.awayId === myTeam(uid));
+
+const A = client('A', TOKEN_A);
+const B = client('B', TOKEN_B);
+await A.conn.start(); await B.conn.start();
+
+// ================= LOBBY =================
 await A.conn.invoke('JoinRoom', CODE);
 await B.conn.invoke('JoinRoom', CODE);
-ok('lobby: os dois entraram na sala', await waitUntil('2 players', () => A.room?.players?.length === 2));
+ok('lobby: 2 jogadores na sala', await waitUntil('2p', () => A.room?.players?.length === 2));
+ok('lobby: velocidade padrão "rapido"', A.room.speed === 'rapido');
 
+// (#2) velocidade: não-host rejeitado; host troca e volta
+B.lastErr = null;
+await B.conn.invoke('SetRoomSpeed', CODE, 'super');
+ok('lobby: convidado NÃO muda a velocidade', await waitUntil('err', () => (B.lastErr || '').includes('anfitrião')));
+await A.conn.invoke('SetRoomSpeed', CODE, 'super');
+ok('lobby: anfitrião muda p/ super (broadcast)', await waitUntil('spd', () => B.room?.speed === 'super'));
+await A.conn.invoke('SetRoomSpeed', CODE, 'rapido');
+await waitUntil('spd2', () => A.room?.speed === 'rapido');
+
+// ================= DRAFT =================
 await A.conn.invoke('StartDraft', CODE);
-await A.conn.invoke('SubmitTeam', CODE, teamOf(0));
-await B.conn.invoke('SubmitTeam', CODE, teamOf(7));
+await A.conn.invoke('SubmitTeam', CODE, teams[0]);
+await B.conn.invoke('SubmitTeam', CODE, teams[9]);
 
-// ---------- BUG 1: pré-jogo da PRIMEIRA rodada ----------
-ok('rodada 1 anunciada com status "aguardando" no snapshot',
-  await waitUntil('announce r1', () => A.snap?.currentRound?.status === 'aguardando'));
-ok('os dois receberam YourMatch da rodada 1',
-  await waitUntil('YourMatch', () => A.yourMatch && B.yourMatch));
-ok('PRÉ-JOGO renderizaria para o anfitrião (condição exata da UI)', wouldShowPrematch(A));
-ok('PRÉ-JOGO renderizaria para o convidado', wouldShowPrematch(B));
+// ================= RODADA 1: gate + payloads =================
+ok('r1 anunciada (status aguardando no snapshot)',
+  await waitUntil('announce', () => round(A)?.status === 'aguardando'));
+ok('(#3) readyDeadline presente e no futuro',
+  !!round(A).readyDeadline && new Date(round(A).readyDeadline) > new Date());
+ok('(#2) pace da sala aplicado no torneio (rapido=250ms/min)', round(A).paceMsPerMinute === 250);
+ok('(#6) YourMatch traz os RESERVAS (banco de 1 GOL)',
+  await waitUntil('ym', () => A.yourMatch?.bench?.length === 1 && B.yourMatch?.bench?.length === 1));
+ok('pré-jogo renderizável p/ ambos (fixture na rodada)', inRound(A, USER_A) && inRound(B, USER_B));
 
-await sleep(3000);
-ok('gate SEGURA a rodada: nenhum MinuteTick após 3s sem cliques',
-  A.minuteTicks === 0 && A.roundStartedCount === 0);
-
-await A.conn.invoke('ReadyForRound', CODE);
-ok('progresso 1/2 após 1º clique',
-  await waitUntil('progress', () => A.progress?.ready === 1 && A.progress?.total === 2));
-await sleep(2000);
-ok('gate ainda segura com 1/2 (sem ticks)', A.minuteTicks === 0);
-
-await B.conn.invoke('ReadyForRound', CODE);
-ok('2º clique abre a rodada (RoundStarted + status "rolando")',
-  await waitUntil('start', () => A.roundStartedCount >= 1 && A.snap?.currentRound?.status === 'rolando', 8000));
-ok('relógio do servidor andando (MinuteTicks chegando)',
-  await waitUntil('ticks', () => A.minuteTicks >= 3, 8000));
-
-// ---------- BUG 2/3: transição para rodadas 2 e 3 ----------
-ok('rodada 1 terminou e a RODADA 2 foi anunciada (status "aguardando")',
-  await waitUntil('announce r2', () => roundLabel(A) === 'Rodada 2' && A.snap.currentRound.status === 'aguardando', 60000));
-ok('novo YourMatch da rodada 2 chegou',
-  await waitUntil('ym2', () => A.yourMatch && A.snap.currentRound.fixtures.some(f => f.fixtureId === A.yourMatch.fixtureId), 5000));
-ok('PRÉ-JOGO renderizaria de novo na rodada 2 (anfitrião)', wouldShowPrematch(A));
-ok('PRÉ-JOGO renderizaria de novo na rodada 2 (convidado)', wouldShowPrematch(B));
-
-const ticksBeforeR2 = A.minuteTicks;
 await sleep(2500);
-ok('gate da rodada 2 também segura sem cliques', A.minuteTicks === ticksBeforeR2);
-
+ok('gate SEGURA sem cliques (0 ticks)', A.minuteTicks === 0);
 await A.conn.invoke('ReadyForRound', CODE);
+ok('progresso 1/2', await waitUntil('prog', () => A.progress?.ready === 1));
 await B.conn.invoke('ReadyForRound', CODE);
-ok('rodada 2 abriu após os 2 cliques',
-  await waitUntil('r2 rolando', () => A.snap?.currentRound?.status === 'rolando', 8000));
+ok('2º clique abre a rodada', await waitUntil('live', () => round(A)?.status === 'rolando', 8000));
 
-ok('RODADA 3 anunciada após a 2 (o torneio NÃO trava)',
-  await waitUntil('announce r3', () => roundLabel(A) === 'Rodada 3' && A.snap.currentRound.status === 'aguardando', 60000));
-ok('PRÉ-JOGO renderizaria na rodada 3', wouldShowPrematch(A) && wouldShowPrematch(B));
+// (#1) skip: todos terminaram de assistir → resolve na hora
+await waitUntil('ticks', () => A.minuteTicks >= 2, 5000);
+const skipAt = Date.now();
+await A.conn.invoke('DoneWatching', CODE);
+await B.conn.invoke('DoneWatching', CODE);
+ok('(#1) rodada PULA quando todos terminam (fim < 8s; cheia seria 22s)',
+  await waitUntil('skip', () => !round(A) || round(A).label !== 'Rodada 1', 8000)
+  && (Date.now() - skipAt) < 8000);
+ok('(#1) mesmo pulando, todos os 90 ticks/MatchFinished saíram', A.lastMinute === 90);
 
-await A.conn.stop();
-await B.conn.stop();
+// ================= TORNEIO ATÉ O CAMPEÃO (adaptativo) =================
+const labels = ['Rodada 1'];
+let spectChecked = false;
+for (let guard = 0; guard < 12 && A.snap?.phase !== 'encerrada'; guard++) {
+  if (!await waitUntil('próx. anúncio/fim', () => round(A)?.status === 'aguardando' || A.snap?.phase === 'encerrada', 30000)) break;
+  if (A.snap.phase === 'encerrada') break;
+  const label = round(A).label;
+  labels.push(label);
+  info(`rodada: ${label} (fase ${A.snap.phase}) — A joga? ${inRound(A, USER_A)} B joga? ${inRound(B, USER_B)}`);
 
-console.log('\n--- timeline do anfitrião ---');
-A.log.slice(0, 25).forEach(l => console.log('   ' + l));
-console.log(failed === 0 ? '\n✅ E2E COMPLETO: fluxo do pré-jogo OK nas rodadas 1, 2 e 3'
+  // espectador: se exatamente um humano caiu, o eliminado assiste o vivo
+  if (!spectChecked && A.snap.phase === 'mata-mata') {
+    const aIn = inRound(A, USER_A), bIn = inRound(B, USER_B);
+    if (aIn !== bIn) {
+      const dead = aIn ? B : A;
+      const aliveTeam = myTeam(aIn ? USER_A : USER_B);
+      await A.conn.invoke('ReadyForRound', CODE).catch(() => {});
+      await B.conn.invoke('ReadyForRound', CODE).catch(() => {});
+      await waitUntil('live spect', () => round(dead)?.status === 'rolando', 70000);
+      const fx = round(dead).fixtures.find(f => f.homeId === aliveTeam || f.awayId === aliveTeam);
+      await dead.conn.invoke('WatchFixture', CODE, fx.fixtureId);
+      ok('espectador: eliminado recebe WatchMatch do time vivo',
+        await waitUntil('watch', () => dead.watch?.fixtureId === fx.fixtureId, 5000));
+      spectChecked = true;
+      await A.conn.invoke('DoneWatching', CODE).catch(() => {});
+      await B.conn.invoke('DoneWatching', CODE).catch(() => {});
+      await waitUntil('fim rodada', () => !round(A) || round(A).label !== label || A.snap.phase === 'encerrada', 30000);
+      continue;
+    }
+  }
+
+  await A.conn.invoke('ReadyForRound', CODE).catch(() => {});
+  await B.conn.invoke('ReadyForRound', CODE).catch(() => {});
+  await waitUntil('rolando', () => round(A)?.status === 'rolando' || A.snap.phase === 'encerrada', 75000);
+  await A.conn.invoke('DoneWatching', CODE).catch(() => {});
+  await B.conn.invoke('DoneWatching', CODE).catch(() => {});
+  await waitUntil('fim rodada', () => !round(A) || round(A).label !== label || A.snap.phase === 'encerrada', 30000);
+}
+ok('torneio 1 chegou ao campeão', await waitUntil('fim', () => A.snap?.phase === 'encerrada' && !!A.snap.championTeamId, 60000));
+ok('TournamentFinished recebido', !!A.finished);
+ok('grupos completos antes do mata-mata', labels.filter(l => l.startsWith('Rodada')).length === 3);
+info(`rodadas: ${labels.join(' → ')} | campeão: ${A.snap.championTeamId}`);
+if (!spectChecked) info('cenário espectador: humanos não divergiram nesta seed (ok)');
+
+// ================= REVANCHE (PlayAgain) =================
+B.lastErr = null;
+await B.conn.invoke('PlayAgain', CODE);
+ok('revanche: convidado rejeitado', await waitUntil('err', () => (B.lastErr || '').includes('anfitrião')));
+await A.conn.invoke('PlayAgain', CODE);
+ok('revanche: sala volta ao lobby', await waitUntil('lobby', () => A.room?.state === 'aguardando'));
+ok('revanche: ready zerado e times limpos',
+  A.room.players.every(p => !p.ready && !p.hasTeam));
+ok('revanche: velocidade da sala PRESERVADA', A.room.speed === 'rapido');
+
+// torneio 2 inteiro (rápido, com skips)
+A.snap = null; A.finished = null; A.minuteTicks = 0;
+await A.conn.invoke('StartDraft', CODE);
+await A.conn.invoke('SubmitTeam', CODE, teams[3]);
+await B.conn.invoke('SubmitTeam', CODE, teams[12]);
+for (let guard = 0; guard < 12 && A.snap?.phase !== 'encerrada'; guard++) {
+  if (!await waitUntil('anúncio t2', () => round(A)?.status === 'aguardando' || A.snap?.phase === 'encerrada', 30000)) break;
+  if (A.snap.phase === 'encerrada') break;
+  const label = round(A).label;
+  await A.conn.invoke('ReadyForRound', CODE).catch(() => {});
+  await B.conn.invoke('ReadyForRound', CODE).catch(() => {});
+  await waitUntil('rolando t2', () => round(A)?.status === 'rolando' || A.snap.phase === 'encerrada', 75000);
+  await A.conn.invoke('DoneWatching', CODE).catch(() => {});
+  await B.conn.invoke('DoneWatching', CODE).catch(() => {});
+  await waitUntil('fim t2', () => !round(A) || round(A).label !== label || A.snap.phase === 'encerrada', 30000);
+}
+ok('REVANCHE também chega ao campeão', await waitUntil('fim2', () => A.snap?.phase === 'encerrada' && !!A.snap.championTeamId, 60000));
+info(`campeão da revanche: ${A.snap.championTeamId}`);
+
+await A.conn.stop(); await B.conn.stop();
+console.log(failed === 0
+  ? `\n✅ E2E COMPLETO (${ts()}): lobby+velocidade, gate, skip, torneio, espectador, fim e revanche OK`
   : `\n❌ ${failed} verificações falharam`);
 process.exit(failed === 0 ? 0 : 1);

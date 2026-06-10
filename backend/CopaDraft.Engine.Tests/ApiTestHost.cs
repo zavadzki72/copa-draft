@@ -38,6 +38,9 @@ public sealed class ApiTestHost : IDisposable
                     ["Jwt:Key"] = "integration-test-key-0123456789abcdef-extra",
                     ["Jwt:Issuer"] = "copa-draft-tests",
                     ["Mp:PaceMsPerMinute"] = "0",      // torneios instantâneos nos testes
+                    ["Mp:Speeds:normal"] = "0",
+                    ["Mp:Speeds:rapido"] = "0",
+                    ["Mp:Speeds:super"] = "0",
                     ["Mp:InterRoundSeconds"] = "0",
                     ["Mp:RoundReadySeconds"] = "0",   // gate desligado nos testes de fluxo
                 };

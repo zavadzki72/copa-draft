@@ -108,6 +108,29 @@ public class LobbyHub(
             });
     }
 
+    /// <summary>Velocidade do ticker (anfitrião, no lobby) — vale pro torneio todo.</summary>
+    public async Task SetRoomSpeed(string code, string speed)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.SetSpeedAsync(code, UserId, speed);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
+    /// <summary>"Terminei de assistir" — quando todos os humanos da rodada
+    /// terminam/pulam, o servidor resolve o resto da rodada na hora.</summary>
+    public Task DoneWatching(string code)
+    {
+        orchestrator.MarkDoneWatching(code.ToUpperInvariant(), UserId);
+        return Task.CompletedTask;
+    }
+
     /// <summary>Revanche: o anfitrião reseta a sala encerrada de volta ao lobby
     /// (novos times, novo seed) sem ninguém precisar recriar/entrar de novo.</summary>
     public async Task PlayAgain(string code)

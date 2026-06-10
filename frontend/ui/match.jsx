@@ -13,7 +13,7 @@ function StaminaBar({ fatigue }) {
   );
 }
 
-function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, playerStatus, opponentXI, opponentAvg, onStart }) {
+function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue, playerStatus, opponentXI, opponentAvg, onStart, lockLineup }) {
   const C = window.CONFIG;
   const Modal = window.Modal;
   const t = (k, v) => window.I18N.t(k, v);
@@ -129,7 +129,7 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
           <span className="rnd">{window.roundText(round, 'short')}</span>
         </div>
         <button className="vs-side vs-opp" onClick={() => setShowOpp(true)} title={t('ui.match.oppView')}>
-          <Flag code={opp.code} />
+          <TeamMark code={opp.code} dream={opp.dream} />
           <span className="tn">{opp.team}</span>
           <span className="cup">{opp.cup}</span>
           <span className="ovr" style={{ color: 'var(--fg2)' }}>{opponentAvg}</span>
@@ -195,28 +195,24 @@ function PreMatchScreen({ me, starters, bench, formation, starId, round, fatigue
                 const out = stOf(p.id);
                 return (
                   <div className={`slot stamina-row bench ${active ? 'swapping' : ''} ${out ? 'out' : ''}`} key={p.id}
-                    onClick={() => !out && setSel(active ? null : p.id)} style={{ cursor: out ? 'not-allowed' : 'pointer' }}>
+                    onClick={() => !lockLineup && !out && setSel(active ? null : p.id)}
+                    style={{ cursor: lockLineup || out ? 'default' : 'pointer' }}>
                     <span className="pp">{p.pos}</span>
                     <span className="nm">{p.code && <Flag code={p.code} className="slot-flag" />} {p.name}{outTag(p.id)}</span>
                     <StaminaBar fatigue={f} />
                     <span className="ov">{effOvr(p)}</span>
-                    <button className="swapbtn" title={out ? t('ui.match.unavailable') : t('ui.match.fieldReserve')} disabled={!!out}
-                      onClick={(e) => { e.stopPropagation(); if (!out) setSel(active ? null : p.id); }}>
-                      {active ? '✕' : '⇄'}
-                    </button>
+                    {!lockLineup && (
+                      <button className="swapbtn" title={out ? t('ui.match.unavailable') : t('ui.match.fieldReserve')} disabled={!!out}
+                        onClick={(e) => { e.stopPropagation(); if (!out) setSel(active ? null : p.id); }}>
+                        {active ? '✕' : '⇄'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
-        <button className="btn btn-yellow" style={{ fontSize: 16, padding: '15px 40px' }}
-          disabled={!canStart} onClick={() => canStart && onStart(xi, res)}>
-          {t('ui.match.start')}
-        </button>
       </div>
 
       {ovrInfo && Modal && (
@@ -376,7 +372,7 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
           </div>
         </div>
         <div className="sb-team away">
-          <Flag code={log.away.code} />
+          <TeamMark code={log.away.code} dream={log.away.dream} />
           <span className="tn">{log.away.name}</span>
         </div>
       </div>

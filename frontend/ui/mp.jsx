@@ -11,6 +11,12 @@
 // lib/mp-log.js (window.MPLOG) para serem testáveis em Node.
 const mpTeamInfo = (snap, teamId) => window.MPLOG.teamInfo(snap, teamId);
 
+/* nome com destaque quando o time é de um humano (#4) */
+function MpTeamName({ snap, id }) {
+  const info = mpTeamInfo(snap, id);
+  return <span className={info.isHuman ? 'mp-human' : ''}>{info.isHuman ? '👤 ' : ''}{info.name}</span>;
+}
+
 function MpMark({ snap, id }) {
   const info = mpTeamInfo(snap, id);
   return info.isHuman ? <Crest className="cr-inline" /> : <Flag code={info.code} />;
@@ -123,7 +129,7 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   );
 }
 
-function MpLobby({ room, meId, error, onReady, onStart, onLeave }) {
+function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
   const me = room.players.find(p => p.userId === meId);
   const isHost = room.hostUserId === meId;
   const readyCount = room.players.filter(p => p.ready).length;
@@ -147,6 +153,16 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave }) {
         <span className="lab">Código da sala</span>
         <div className="mp-code">{room.code}</div>
         <button className="btn btn-ghost" onClick={copy}>{copied ? '✓ Copiado!' : '📋 Copiar link de convite'}</button>
+      </div>
+
+      <div className="setcard mp-speed">
+        <span className="lab">Velocidade das partidas</span>
+        <Segmented value={room.speed} onChange={(v) => isHost && onSpeed(v)} options={[
+          { id: 'normal', label: 'Normal', hint: '~34s' },
+          { id: 'rapido', label: 'Rápida', hint: '~22s' },
+          { id: 'super', label: 'Super', hint: '~11s' },
+        ]} />
+        {!isHost && <p className="p mp-hint">Só o anfitrião 👑 escolhe a velocidade.</p>}
       </div>
 
       <div className="mp-players">
@@ -178,7 +194,7 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave }) {
 }
 
 /* groups + bracket, fed live by server snapshots */
-function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, follow, onFollow, onSpectate }) {
+function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, follow, onFollow, onSpectate, advanced, onAdvance, onBackToEnd }) {
   const phase = snap.phase;
   const roundInfo = snap.currentRound;
   // fase da rodada derivada do SNAPSHOT (fonte única da verdade)
@@ -213,14 +229,30 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
           </h2>
         </div>
         {roundInfo && phase !== 'encerrada' && !announcing && <span className="meta">⏱ minuto {minute || 0}</span>}
+        {phase === 'encerrada' && onBackToEnd && (
+          <button className="btn btn-yellow" onClick={onBackToEnd}>🏁 Resultado final</button>
+        )}
       </div>
 
-      {/* pré-jogo da rodada: jogadores confirmando presença */}
+      {/* pré-jogo da rodada: Avançar (quem joga) / confirmando (demais) */}
       {announcing && phase !== 'encerrada' && (
         <div className="mp-yourmatch setcard">
-          <span className="lab">⏳ {roundInfo.label}: jogadores confirmando
-            {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</span>
-          <p className="p mp-hint">A rodada começa quando todos clicarem em iniciar (ou em {roundInfo.readySeconds}s).</p>
+          {myCurrentFixture && !advanced ? (
+            <>
+              <span className="lab">⚽ {roundInfo.label}: sua partida está montada</span>
+              <div className="mp-advance-row">
+                <button className="btn btn-green" onClick={onAdvance}>▶ Avançar para o pré-jogo</button>
+                <MpTimer deadline={roundInfo.readyDeadline} />
+              </div>
+              <p className="p mp-hint">Se o tempo zerar, a rodada começa automaticamente.</p>
+            </>
+          ) : (
+            <>
+              <span className="lab">⏳ {roundInfo.label}: jogadores confirmando
+                {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</span>
+              <div className="mp-advance-row"><MpTimer deadline={roundInfo.readyDeadline} /></div>
+            </>
+          )}
         </div>
       )}
 
@@ -292,7 +324,7 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
               return (
                 <div className={`gt-row ${i < 2 ? 'qualify' : ''} ${isMe ? 'me' : ''}`} role="row" key={r.teamId}>
                   <span className="gt-pos">{i + 1}</span>
-                  <span className="gt-team"><MpMark snap={snap} id={r.teamId} /> {teamName(r.teamId)}</span>
+                  <span className="gt-team"><MpMark snap={snap} id={r.teamId} /> <MpTeamName snap={snap} id={r.teamId} /></span>
                   <span className="gt-p">{r.p}</span><span>{r.j}</span><span>{r.v}</span><span>{r.e}</span><span>{r.d}</span>
                   <span>{r.gp}</span><span>{r.gc}</span><span>{r.sg > 0 ? '+' + r.sg : r.sg}</span>
                 </div>
@@ -305,9 +337,9 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
                 <div className="gcal-rlabel">Rodada {r + 1}</div>
                 {g.fixtures.filter(f => f.round === r).map(f => (
                   <div className={`gcal-fx ${[f.homeId, f.awayId].includes(myTeamId) ? 'mine' : ''}`} key={f.fixtureId}>
-                    <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> {teamName(f.homeId)}</span>
+                    <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> <MpTeamName snap={snap} id={f.homeId} /></span>
                     <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : 'a jogar'}</span>
-                    <span className="gcal-a">{teamName(f.awayId)} <MpMark snap={snap} id={f.awayId} /></span>
+                    <span className="gcal-a"><MpTeamName snap={snap} id={f.awayId} /> <MpMark snap={snap} id={f.awayId} /></span>
                   </div>
                 ))}
               </div>
@@ -324,13 +356,13 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
               <div className="gcal-rlabel">{window.roundText({ id: round.roundId }, 'label')}</div>
               {round.ties.map(tie => (
                 <div className={`gcal-fx ${[tie.homeId, tie.awayId].includes(myTeamId) ? 'mine' : ''}`} key={tie.tieId}>
-                  <span className="gcal-h"><MpMark snap={snap} id={tie.homeId} /> {teamName(tie.homeId)}</span>
+                  <span className="gcal-h"><MpMark snap={snap} id={tie.homeId} /> <MpTeamName snap={snap} id={tie.homeId} /></span>
                   <span className="gcal-sc">
                     {tie.played
                       ? `${tie.homeGoals} – ${tie.awayGoals}${tie.pensHome != null ? ` (${tie.pensHome}–${tie.pensAway} pen)` : ''}`
                       : 'a jogar'}
                   </span>
-                  <span className="gcal-a">{teamName(tie.awayId)} <MpMark snap={snap} id={tie.awayId} /></span>
+                  <span className="gcal-a"><MpTeamName snap={snap} id={tie.awayId} /> <MpMark snap={snap} id={tie.awayId} /></span>
                 </div>
               ))}
             </div>
@@ -396,6 +428,7 @@ function MultiplayerApp({ sfx, onExit }) {
   const [spectMatch, setSpectMatch] = useState(null); // {fixtureId, homeId, awayId, log}
   const [readyProgress, setReadyProgress] = useState(null); // {ready, total}
   const [clickedRound, setClickedRound] = useState(null);   // chave da rodada em que já cliquei "iniciar"
+  const [advancedRound, setAdvancedRound] = useState(null); // rodada em que cliquei "Avançar" (#5)
   const [postMatch, setPostMatch] = useState(null);  // {log, ratings} — pós-jogo (reuso do solo)
   const meId = session ? session.user.id : null;
 
@@ -427,6 +460,7 @@ function MultiplayerApp({ sfx, onExit }) {
       setWatching(false);
       setReadyProgress(null);
       setMinute(0);
+      setAdvancedRound(null);
       if (myFixtureInRound) { busyWatchingRef.current = false; setPostMatch(null); }
     }
     if (roundLive && myFixtureInRound && openedRoundRef.current !== roundKey) {
@@ -454,7 +488,7 @@ function MultiplayerApp({ sfx, onExit }) {
         if (state.state === 'aguardando' && !['login', 'menu', 'lobby'].includes(stageRef.current)) {
           setSnap(null); setYourMatch(null); setFollow(null); setSpectMatch(null);
           setPostMatch(null); setWatching(false); setReadyProgress(null);
-          setClickedRound(null); setFormationChosen(false); setDeadline(null); setProgress(null);
+          setClickedRound(null); setAdvancedRound(null); setFormationChosen(false); setDeadline(null); setProgress(null);
           setMinute(0);
           announcedRoundRef.current = null;
           openedRoundRef.current = null;
@@ -559,6 +593,7 @@ function MultiplayerApp({ sfx, onExit }) {
     return <MpLobby room={room} meId={meId} error={error}
       onReady={(r) => window.MPRT.invoke('SetReady', room.code, r).catch(() => {})}
       onStart={() => window.MPRT.invoke('StartDraft', room.code).catch(() => {})}
+      onSpeed={(v) => window.MPRT.invoke('SetRoomSpeed', room.code, v).catch(() => {})}
       onLeave={leaveAll} />;
 
   if (stage === 'draft') {
@@ -619,15 +654,16 @@ function MultiplayerApp({ sfx, onExit }) {
   };
 
   // ---- pré-jogo (reuso do PreMatchScreen do solo): "iniciar partida" = pronto ----
-  if (stage === 'tournament' && announcing && myFixtureInRound) {
+  // só entra depois do "Avançar" (#5); o gate do servidor é o teto de espera
+  if (stage === 'tournament' && announcing && myFixtureInRound && advancedRound === roundKey) {
     if (clickedRound === roundKey) {
       return (
         <div className="stage narrow screen-fade mp-center">
           <span className="tok">{rInfo.label.toUpperCase()}</span>
           <h2>Pronto! ✓</h2>
           <p className="sub">Aguardando os outros jogadores
-            {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…
-            A rodada começa quando todos derem o pontapé (ou em {rInfo.readySeconds}s).</p>
+            {readyProgress ? ` (${readyProgress.ready}/${readyProgress.total})` : ''}…</p>
+          <MpTimer deadline={rInfo.readyDeadline} />
         </div>
       );
     }
@@ -636,18 +672,26 @@ function MultiplayerApp({ sfx, onExit }) {
     const oppSideKey = meSideKey === 'home' ? 'away' : 'home';
     const meSide = log[meSideKey], oppSide = log[oppSideKey];
     const myXI = meSide.starters.map(fullPlayer);
+    const myBench = (yourMatch.bench || []).map(fullPlayer);   // reservas reais (#6)
     const oppXI = oppSide.starters.map(fullPlayer);
     const oppAvg = Math.round(oppXI.reduce((s, p) => s + p.overall, 0) / Math.max(1, oppXI.length));
-    const round = { ...mpRound(), n: 0, opponent: { team: oppSide.name, code: oppSide.code || null, cup: oppSide.cup || '' } };
+    const round = { ...mpRound(), n: 0,
+      opponent: { team: oppSide.name, code: oppSide.code || null, cup: oppSide.cup || '', dream: !!oppSide.dream } };
     return (
-      <PreMatchScreen me={{ name: session.user.name, dream: true }}
-        starters={myXI} bench={[]} formation={meSide.formation} starId={null}
-        round={round} fatigue={{}} playerStatus={{}}
-        opponentXI={oppXI} opponentAvg={oppAvg}
-        onStart={() => {
-          setClickedRound(roundKey);
-          window.MPRT.invoke('ReadyForRound', room.code).catch(() => {});
-        }} />
+      <div>
+        <div className="mp-draft-head stage narrow">
+          <span className="tok">PRÉ-JOGO · {rInfo.label.toUpperCase()}</span>
+          <MpTimer deadline={rInfo.readyDeadline} />
+        </div>
+        <PreMatchScreen me={{ name: session.user.name, dream: true }}
+          starters={myXI} bench={myBench} formation={meSide.formation} starId={null}
+          round={round} fatigue={{}} playerStatus={{}} lockLineup={true}
+          opponentXI={oppXI} opponentAvg={oppAvg}
+          onStart={() => {
+            setClickedRound(roundKey);
+            window.MPRT.invoke('ReadyForRound', room.code).catch(() => {});
+          }} />
+      </div>
     );
   }
 
@@ -675,6 +719,8 @@ function MultiplayerApp({ sfx, onExit }) {
       <MatchScreen log={log} me={me} round={round} sfx={sfx}
         speed={null} onSpeedChange={null} fixedPace={mpPace()} startAtMinute={minute}
         onFinish={() => {
+          // avisa o servidor: se TODOS terminarem/pularem, a rodada resolve na hora (#1)
+          window.MPRT.invoke('DoneWatching', room.code).catch(() => {});
           setWatching(false);
           setPostMatch({ log, round, ratings: window.RATINGS.computeRatings(log, window.CONFIG) });
         }}
@@ -703,6 +749,8 @@ function MultiplayerApp({ sfx, onExit }) {
     return <MpTournament snap={snap} meId={meId} minute={minute}
       yourMatch={yourMatch} onWatch={() => setWatching(true)}
       readyProgress={readyProgress}
+      advanced={advancedRound === roundKey} onAdvance={() => setAdvancedRound(roundKey)}
+      onBackToEnd={() => setStage('end')}
       follow={follow} onFollow={setFollow}
       onSpectate={(fixtureId) => window.MPRT.invoke('WatchFixture', room.code, fixtureId).catch(() => {})} />;
 

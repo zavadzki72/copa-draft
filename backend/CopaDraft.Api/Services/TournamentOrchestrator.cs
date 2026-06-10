@@ -48,10 +48,16 @@ public sealed class TournamentOrchestrator(
         public CancellationTokenSource Cts { get; } = new();
         public string? Error { get; set; }
 
+        /// <summary>Pace do ticker (ms/min) — da velocidade escolhida no lobby.</summary>
+        public int PaceMs { get; set; }
+
         // ready-gate da rodada: quem precisa clicar "iniciar" e quem já clicou
         public HashSet<Guid> RoundRequired { get; } = new();
         public HashSet<Guid> RoundReady { get; } = new();
         public TaskCompletionSource<bool>? RoundGate { get; set; }
+        // pular rodada: humanos que já terminaram de assistir a própria partida
+        public HashSet<Guid> RoundDone { get; } = new();
+        public TaskCompletionSource<bool>? RoundSkip { get; set; }
         /// <summary>Sem humanos vivos: simula o resto sem relógio nem gate.</summary>
         public bool FastForward { get; set; }
         public object GateLock { get; } = new();
@@ -110,6 +116,20 @@ public sealed class TournamentOrchestrator(
         }
     }
 
+    /// <summary>"Terminei de assistir": quando TODOS os humanos da rodada
+    /// terminam (ou pulam), o relógio resolve o resto na hora.</summary>
+    public void MarkDoneWatching(string code, Guid userId)
+    {
+        if (!_running.TryGetValue(code.ToUpperInvariant(), out RunningTournament? rt)) return;
+        lock (rt.GateLock)
+        {
+            if (rt.RoundSkip is null || !rt.RoundRequired.Contains(userId)) return;
+            rt.RoundDone.Add(userId);
+            if (rt.RoundDone.Count >= rt.RoundRequired.Count)
+                rt.RoundSkip.TrySetResult(true);
+        }
+    }
+
     /// <summary>Builds and launches the tournament for a room whose draft is
     /// complete. Idempotent — only the first call wins.</summary>
     public Task<bool> TryStartAsync(string code, CancellationToken ct = default)
@@ -153,6 +173,7 @@ public sealed class TournamentOrchestrator(
             T = t,
             UserByTeamId = room.Participants.ToDictionary(p => "h:" + p.UserId, p => p.UserId),
         };
+        rt.PaceMs = mp.Value.PaceFor(room.Speed);
         if (!_running.TryAdd(code, rt)) return false;
 
         room.State = RoomState.Groups;
@@ -302,8 +323,9 @@ public sealed class TournamentOrchestrator(
         int LastMinute(MatchLog log) => log.ExtraTime ? 120 : 90;
         int maxMinute = matches.Max(m => LastMinute(m.Log));
 
-        rt.CurrentRound = new RoundInfoDto(kind, label, maxMinute, mp.Value.PaceMsPerMinute,
+        rt.CurrentRound = new RoundInfoDto(kind, label, maxMinute, rt.PaceMs,
             "aguardando", mp.Value.RoundReadySeconds,
+            DateTimeOffset.UtcNow.AddSeconds(mp.Value.RoundReadySeconds),
             matches.Select(m => new FixtureRefDto(m.FixtureId, m.HomeId, m.AwayId, LastMinute(m.Log))).ToList());
 
         // spectator pool: every match of the round is watchable
@@ -322,7 +344,9 @@ public sealed class TournamentOrchestrator(
             {
                 if (rt.UserByTeamId.TryGetValue(teamId, out Guid userId))
                 {
-                    var payload = new YourMatchDto(fixtureId, side, log);
+                    var bench = rt.T.Teams[teamId].Side.Bench
+                        .Select(p => new StarterRef(p.Id, p.Name, p.Pos)).ToList();
+                    var payload = new YourMatchDto(fixtureId, side, log, bench);
                     rt.YourMatches[userId] = payload;
                     await hub.Clients.User(userId.ToString()).SendAsync(YourMatchEvent, payload, ct);
                 }
@@ -345,17 +369,21 @@ public sealed class TournamentOrchestrator(
         // ---------- ready-gate: a rodada só começa quando os humanos vivos e
         // conectados clicam "iniciar partida" (ou após o timeout) ----------
         TaskCompletionSource<bool> gate;
+        TaskCompletionSource<bool> skip;
         int requiredCount;
         lock (rt.GateLock)
         {
             rt.RoundRequired.Clear();
             rt.RoundReady.Clear();
+            rt.RoundDone.Clear();
             foreach ((_, string homeId, string awayId, _) in matches)
                 foreach (string teamId in new[] { homeId, awayId })
                     if (rt.UserByTeamId.TryGetValue(teamId, out Guid uid) && presence.IsOnline(code, uid))
                         rt.RoundRequired.Add(uid);
             gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            skip = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             rt.RoundGate = gate;
+            rt.RoundSkip = skip;
             requiredCount = rt.RoundRequired.Count;
         }
         await hub.Clients.Group(code).SendAsync(RoundReadyEvent, new
@@ -377,7 +405,9 @@ public sealed class TournamentOrchestrator(
         await BroadcastSnapshotAsync(code, rt);
         await hub.Clients.Group(code).SendAsync(RoundStartedEvent, rt.CurrentRound, ct);
 
-        var clock = new RoundClock(mp.Value.PaceMsPerMinute);
+        // se ninguém precisa assistir (todos offline/IA), resolve sem espera
+        if (requiredCount == 0) skip.TrySetResult(true);
+        var clock = new RoundClock(rt.PaceMs);
         await clock.RunAsync(maxMinute, async minute =>
         {
             await hub.Clients.Group(code).SendAsync(MinuteTickEvent, minute, ct);
@@ -392,7 +422,8 @@ public sealed class TournamentOrchestrator(
                     result = log.Result,
                 }, ct);
             }
-        }, ct);
+        }, ct, skip.Task);
+        lock (rt.GateLock) rt.RoundSkip = null;
     }
 
     private TournamentSnapshotDto BuildSnapshot(RunningTournament rt)

@@ -701,3 +701,6 @@
 .mp-elim .lab { color: var(--loss); }
 .mp-follow-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .mp-link { color: var(--yellow-ink); cursor:pointer; text-decoration:underline; }
+.mp-human { color: var(--yellow-ink); font-weight: 700; }
+.mp-speed { margin: 0 0 14px; }
+.mp-advance-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px; }

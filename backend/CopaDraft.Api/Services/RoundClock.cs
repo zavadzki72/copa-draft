@@ -7,12 +7,19 @@ namespace CopaDraft.Api.Services;
 /// </summary>
 public sealed class RoundClock(int paceMsPerMinute)
 {
-    public async Task RunAsync(int maxMinute, Func<int, Task> onMinute, CancellationToken ct)
+    /// <param name="skip">Quando completa (todos os humanos terminaram de
+    /// assistir), o restante da rodada resolve instantaneamente.</param>
+    public async Task RunAsync(int maxMinute, Func<int, Task> onMinute, CancellationToken ct, Task? skip = null)
     {
         for (int minute = 1; minute <= maxMinute; minute++)
         {
             ct.ThrowIfCancellationRequested();
-            if (paceMsPerMinute > 0) await Task.Delay(paceMsPerMinute, ct);
+            bool skipped = skip is not null && skip.IsCompleted;
+            if (!skipped && paceMsPerMinute > 0)
+            {
+                Task delay = Task.Delay(paceMsPerMinute, ct);
+                await (skip is not null ? Task.WhenAny(delay, skip) : delay);
+            }
             await onMinute(minute);
         }
     }

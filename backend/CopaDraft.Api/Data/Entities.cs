@@ -30,6 +30,8 @@ public class Room
     public DateTimeOffset CreatedAt { get; set; }
     /// <summary>Draft deadline while State == Draft.</summary>
     public DateTimeOffset? DraftDeadline { get; set; }
+    /// <summary>Velocidade do ticker escolhida no lobby (normal|rapido|super).</summary>
+    public string Speed { get; set; } = "rapido";
 
     public List<Participant> Participants { get; set; } = new();
 }
