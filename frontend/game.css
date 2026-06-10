@@ -704,3 +704,4 @@
 .mp-human { color: var(--yellow-ink); font-weight: 700; }
 .mp-speed { margin: 0 0 14px; }
 .mp-advance-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px; }
+.mp-speed-view { color: var(--fg); font-size: .95rem; }

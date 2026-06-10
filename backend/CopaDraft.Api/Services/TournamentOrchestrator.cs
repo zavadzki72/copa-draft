@@ -51,6 +51,10 @@ public sealed class TournamentOrchestrator(
         /// <summary>Pace do ticker (ms/min) — da velocidade escolhida no lobby.</summary>
         public int PaceMs { get; set; }
 
+        /// <summary>Cansaço acumulado por time (mecânica do solo no MP):
+        /// titulares cansam por jogo, banco descansa; penaliza o overall efetivo.</summary>
+        public Dictionary<string, Dictionary<string, double>> Fatigue { get; } = new();
+
         // ready-gate da rodada: quem precisa clicar "iniciar" e quem já clicou
         public HashSet<Guid> RoundRequired { get; } = new();
         public HashSet<Guid> RoundReady { get; } = new();
@@ -225,6 +229,15 @@ public sealed class TournamentOrchestrator(
         GameConfig cfg = GameConfig.Default;
         GeneratedTournament t = rt.T;
 
+        Dictionary<string, double> FatigueOf(string teamId)
+            => rt.Fatigue.TryGetValue(teamId, out var m) ? m : (rt.Fatigue[teamId] = new());
+        SideInput SideOf(string teamId) => MpFatigue.Apply(t.Teams[teamId].Side, FatigueOf(teamId));
+        void Rest(string homeId, string awayId)
+        {
+            MpFatigue.UpdateAfterMatch(FatigueOf(homeId), t.Teams[homeId].Side, cfg);
+            MpFatigue.UpdateAfterMatch(FatigueOf(awayId), t.Teams[awayId].Side, cfg);
+        }
+
         // ---------- group stage: 3 rounds ----------
         int groupRounds = t.Groups[0].Fixtures.Max(f => f.Round) + 1;
         for (int round = 0; round < groupRounds; round++)
@@ -234,15 +247,20 @@ public sealed class TournamentOrchestrator(
             foreach (GroupFixture fx in fixtures)
             {
                 logs[fx.FixtureId] = MatchEngine.SimulateMatch(
-                    t.Teams[fx.HomeId].Side, t.Teams[fx.AwayId].Side, cfg,
-                    TournamentGenerator.MatchSeed(t.Seed, fx.FixtureId), new EngineOptions());
+                    SideOf(fx.HomeId), SideOf(fx.AwayId), cfg,
+                    TournamentGenerator.MatchSeed(t.Seed, fx.FixtureId),
+                    new EngineOptions { Fatigue = true, Pressure = true, RoundN = 0 });
             }
 
             await StartRoundAsync(code, rt, "group", $"Rodada {round + 1}",
                 fixtures.Select(fx => (fx.FixtureId, fx.HomeId, fx.AwayId, Log: logs[fx.FixtureId])).ToList(), ct);
 
-            // apply results + standings, persist, broadcast
-            foreach (GroupFixture fx in fixtures) fx.Result = logs[fx.FixtureId].Score;
+            // apply results + fatigue (titulares cansam, banco descansa)
+            foreach (GroupFixture fx in fixtures)
+            {
+                fx.Result = logs[fx.FixtureId].Score;
+                Rest(fx.HomeId, fx.AwayId);
+            }
             rt.CurrentRound = null;
             await BroadcastSnapshotAsync(code, rt);
             await PersistAsync(code, rt);
@@ -275,8 +293,9 @@ public sealed class TournamentOrchestrator(
             foreach (KnockoutTie tie in ties)
             {
                 MatchLog log = MatchEngine.SimulateMatch(
-                    t.Teams[tie.HomeId].Side, t.Teams[tie.AwayId].Side, cfg,
-                    TournamentGenerator.MatchSeed(t.Seed, tie.TieId), new EngineOptions { Knockout = true });
+                    SideOf(tie.HomeId), SideOf(tie.AwayId), cfg,
+                    TournamentGenerator.MatchSeed(t.Seed, tie.TieId),
+                    new EngineOptions { Knockout = true, Fatigue = true, Pressure = true, RoundN = r + 1 });
                 logs[tie.TieId] = log;
                 tie.WinnerId = log.Result == "home" ? tie.HomeId : tie.AwayId;
                 rt.TieResults[tie.TieId] = (log.Score, log.Penalties, tie.WinnerId, false);
@@ -289,6 +308,7 @@ public sealed class TournamentOrchestrator(
             {
                 (Score s, Score? p, string? w, _) = rt.TieResults[tie.TieId];
                 rt.TieResults[tie.TieId] = (s, p, w, true);
+                Rest(tie.HomeId, tie.AwayId);
             }
             rt.CurrentRound = null;
             await BroadcastSnapshotAsync(code, rt);

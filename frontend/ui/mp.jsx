@@ -11,6 +11,50 @@
 // lib/mp-log.js (window.MPLOG) para serem testáveis em Node.
 const mpTeamInfo = (snap, teamId) => window.MPLOG.teamInfo(snap, teamId);
 
+/* um grupo (tabela + calendário) — usado na tela principal (só o MEU grupo)
+   e no modal "todos os grupos" (#6) */
+function MpGroupBlock({ snap, g, myTeamId }) {
+  return (
+    <div className="mp-group">
+      <div className="shead" style={{ margin: '20px 0 10px' }}>
+        <span className="tok">GRUPO {g.label}</span>
+      </div>
+      <div className="group-table" role="table">
+        <div className="gt-row gt-head" role="row">
+          <span className="gt-pos"></span><span className="gt-team">Seleção</span>
+          <span>P</span><span>J</span><span>V</span><span>E</span><span>D</span>
+          <span>GP</span><span>GC</span><span>SG</span>
+        </div>
+        {g.standings.map((r, i) => {
+          const isMe = r.teamId === myTeamId;
+          return (
+            <div className={`gt-row ${i < 2 ? 'qualify' : ''} ${isMe ? 'me' : ''}`} role="row" key={r.teamId}>
+              <span className="gt-pos">{i + 1}</span>
+              <span className="gt-team"><MpMark snap={snap} id={r.teamId} /> <MpTeamName snap={snap} id={r.teamId} /></span>
+              <span className="gt-p">{r.p}</span><span>{r.j}</span><span>{r.v}</span><span>{r.e}</span><span>{r.d}</span>
+              <span>{r.gp}</span><span>{r.gc}</span><span>{r.sg > 0 ? '+' + r.sg : r.sg}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="group-cal" style={{ marginTop: 8 }}>
+        {[0, 1, 2].map(r => (
+          <div className="gcal-round" key={r}>
+            <div className="gcal-rlabel">Rodada {r + 1}</div>
+            {g.fixtures.filter(f => f.round === r).map(f => (
+              <div className={`gcal-fx ${[f.homeId, f.awayId].includes(myTeamId) ? 'mine' : ''}`} key={f.fixtureId}>
+                <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> <MpTeamName snap={snap} id={f.homeId} /></span>
+                <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : 'a jogar'}</span>
+                <span className="gcal-a"><MpTeamName snap={snap} id={f.awayId} /> <MpMark snap={snap} id={f.awayId} /></span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* nome com destaque quando o time é de um humano (#4) */
 function MpTeamName({ snap, id }) {
   const info = mpTeamInfo(snap, id);
@@ -157,12 +201,18 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
 
       <div className="setcard mp-speed">
         <span className="lab">Velocidade das partidas</span>
-        <Segmented value={room.speed} onChange={(v) => isHost && onSpeed(v)} options={[
-          { id: 'normal', label: 'Normal', hint: '~34s' },
-          { id: 'rapido', label: 'Rápida', hint: '~22s' },
-          { id: 'super', label: 'Super', hint: '~11s' },
-        ]} />
-        {!isHost && <p className="p mp-hint">Só o anfitrião 👑 escolhe a velocidade.</p>}
+        {isHost ? (
+          <Segmented value={room.speed} onChange={onSpeed} options={[
+            { id: 'normal', label: 'Normal', hint: '~34s' },
+            { id: 'rapido', label: 'Rápida', hint: '~22s' },
+            { id: 'super', label: 'Super', hint: '~11s' },
+          ]} />
+        ) : (
+          <p className="p mp-speed-view">
+            {{ normal: 'Normal (~34s)', rapido: 'Rápida (~22s)', super: 'Super (~11s)' }[room.speed] || room.speed}
+            <span className="mp-hint"> · definida pelo anfitrião 👑</span>
+          </p>
+        )}
       </div>
 
       <div className="mp-players">
@@ -204,6 +254,8 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
   const myTeamId = 'h:' + meId;
   const iAmChampion = champion === myTeamId;
   const [showPicker, setShowPicker] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
+  const Modal = window.Modal;
 
   // estou jogando NESTA rodada? (evita o card "rolando" preso entre rodadas)
   // durante o pré-jogo a rodada ainda não rola — nada de "ao vivo"
@@ -285,18 +337,13 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
         </div>
       )}
 
-      {/* minha partida: rolando agora × rever a última */}
-      {phase !== 'encerrada' && (myMatchLive ? (
+      {/* minha partida rolando agora */}
+      {phase !== 'encerrada' && myMatchLive && (
         <div className="mp-yourmatch setcard">
           <span className="lab">Sua partida está rolando</span>
           <button className="btn btn-yellow" onClick={onWatch}>▶ Assistir minha partida</button>
         </div>
-      ) : yourMatch && !elim.eliminated && window.MPLOG.isFixturePlayed(snap, yourMatch.fixtureId) ? (
-        <div className="mp-yourmatch setcard">
-          <span className="lab">Última partida encerrada</span>
-          <button className="btn btn-ghost" onClick={onWatch}>↺ Rever minha última partida</button>
-        </div>
-      ) : null)}
+      )}
 
       {/* partida do time acompanhado (só com a rodada em andamento de verdade) */}
       {follow && followAlive && followFixture && !announcing && phase !== 'encerrada' && (
@@ -308,45 +355,21 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
         </div>
       )}
 
-      {snap.groups.map(g => (
-        <div key={g.label} className="mp-group">
-          <div className="shead" style={{ margin: '20px 0 10px' }}>
-            <span className="tok">GRUPO {g.label}</span>
-          </div>
-          <div className="group-table" role="table">
-            <div className="gt-row gt-head" role="row">
-              <span className="gt-pos"></span><span className="gt-team">Seleção</span>
-              <span>P</span><span>J</span><span>V</span><span>E</span><span>D</span>
-              <span>GP</span><span>GC</span><span>SG</span>
-            </div>
-            {g.standings.map((r, i) => {
-              const isMe = r.teamId === myTeamId;
-              return (
-                <div className={`gt-row ${i < 2 ? 'qualify' : ''} ${isMe ? 'me' : ''}`} role="row" key={r.teamId}>
-                  <span className="gt-pos">{i + 1}</span>
-                  <span className="gt-team"><MpMark snap={snap} id={r.teamId} /> <MpTeamName snap={snap} id={r.teamId} /></span>
-                  <span className="gt-p">{r.p}</span><span>{r.j}</span><span>{r.v}</span><span>{r.e}</span><span>{r.d}</span>
-                  <span>{r.gp}</span><span>{r.gc}</span><span>{r.sg > 0 ? '+' + r.sg : r.sg}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="group-cal" style={{ marginTop: 8 }}>
-            {[0, 1, 2].map(r => (
-              <div className="gcal-round" key={r}>
-                <div className="gcal-rlabel">Rodada {r + 1}</div>
-                {g.fixtures.filter(f => f.round === r).map(f => (
-                  <div className={`gcal-fx ${[f.homeId, f.awayId].includes(myTeamId) ? 'mine' : ''}`} key={f.fixtureId}>
-                    <span className="gcal-h"><MpMark snap={snap} id={f.homeId} /> <MpTeamName snap={snap} id={f.homeId} /></span>
-                    <span className="gcal-sc">{f.played ? `${f.homeGoals} – ${f.awayGoals}` : 'a jogar'}</span>
-                    <span className="gcal-a"><MpTeamName snap={snap} id={f.awayId} /> <MpMark snap={snap} id={f.awayId} /></span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+      {/* só o MEU grupo na tela principal — o resto vai pro modal (#6) */}
+      {(() => {
+        const mine = snap.groups.find(g => g.teams.some(t => t.id === myTeamId)) || snap.groups[0];
+        return <MpGroupBlock snap={snap} g={mine} myTeamId={myTeamId} />;
+      })()}
+
+      <div className="mp-foot" style={{ marginTop: 10 }}>
+        <button className="btn btn-ghost" onClick={() => setShowGroups(true)}>🗂 Ver todos os grupos</button>
+      </div>
+
+      {showGroups && Modal && (
+        <Modal title="Todos os grupos" eyebrow="FASE DE GRUPOS" wide onClose={() => setShowGroups(false)}>
+          {snap.groups.map(g => <MpGroupBlock key={g.label} snap={snap} g={g} myTeamId={myTeamId} />)}
+        </Modal>
+      )}
 
       {snap.bracket.length > 0 && (
         <div className="mp-bracket">
@@ -410,7 +433,7 @@ function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
   );
 }
 
-function MultiplayerApp({ sfx, onExit }) {
+function MultiplayerApp({ sfx, onExit, onStage }) {
   const [session, setSession] = useState(window.MPAUTH.session());
   const [stage, setStage] = useState(window.MPAUTH.isLoggedIn() ? 'menu' : 'login');
   const [room, setRoom] = useState(null);
@@ -434,6 +457,8 @@ function MultiplayerApp({ sfx, onExit }) {
 
   const stageRef = useRef(stage);
   stageRef.current = stage;
+  // o GameHeader do app reflete o estágio do MP (senão fica preso em "início")
+  useEffect(() => { if (onStage) onStage(stage); }, [stage]); // eslint-disable-line
   const yourMatchRef = useRef(null);
   yourMatchRef.current = yourMatch;
   const lastRoundRef = useRef(null);                 // info da rodada corrente p/ rótulos
@@ -742,6 +767,18 @@ function MultiplayerApp({ sfx, onExit }) {
           if (snap && snap.phase === 'encerrada') setStage('end');
         }}
         onShootout={null} onPenalty={null} pendingPen={null} />
+    );
+  }
+
+  // (#4) minha rodada está rolando: tabelas só liberam quando ela terminar
+  if (stage === 'tournament' && roundLive && myFixtureInRound && !watching && !spectMatch) {
+    return (
+      <div className="stage narrow screen-fade mp-center">
+        <span className="tok">{rInfo.label.toUpperCase()} · EM ANDAMENTO</span>
+        <h2>Partidas rolando — minuto {minute || 0}</h2>
+        <p className="sub">As tabelas e o chaveamento liberam quando a rodada terminar.</p>
+        <button className="btn btn-yellow" onClick={() => setWatching(true)}>▶ Voltar à minha partida</button>
+      </div>
     );
   }
 

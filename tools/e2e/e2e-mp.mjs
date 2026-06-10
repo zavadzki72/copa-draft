@@ -48,7 +48,7 @@ function client(name, token) {
   };
   conn.on('RoomState', (s) => { st.room = s; });
   conn.on('TournamentState', (s) => { st.snap = s; });
-  conn.on('YourMatch', (m) => { st.yourMatch = m; });
+  conn.on('YourMatch', (m) => { st.yourMatch = m; st.allMatches = (st.allMatches || []).concat(m); });
   conn.on('WatchMatch', (m) => { st.watch = m; });
   conn.on('RoundReadyProgress', (p) => { st.progress = p; });
   conn.on('MinuteTick', (m) => { st.minuteTicks++; st.lastMinute = m; });
@@ -161,6 +161,18 @@ for (let guard = 0; guard < 12 && A.snap?.phase !== 'encerrada'; guard++) {
   await waitUntil('fim rodada', () => !round(A) || round(A).label !== label || A.snap.phase === 'encerrada', 30000);
 }
 ok('torneio 1 chegou ao campeão', await waitUntil('fim', () => A.snap?.phase === 'encerrada' && !!A.snap.championTeamId, 60000));
+
+// ===== mecânicas de jogo nos logs reais (#7) =====
+const allLogs = [...(A.allMatches || []), ...(B.allMatches || [])].map(m => m.log);
+const cards = allLogs.reduce((n, l) => n + (l.cards?.length || 0), 0);
+const injuries = allLogs.reduce((n, l) => n + (l.injuries?.length || 0), 0);
+const pens = allLogs.reduce((n, l) => n + (l.matchPens?.length || 0), 0);
+ok('mecânicas: cartões acontecem nas partidas do MP', cards > 0);
+info(`mecânicas em ${allLogs.length} partidas humanas: ${cards} cartões, ${injuries} lesões, ${pens} pênaltis em jogo`);
+if (injuries > 0) {
+  const sub = allLogs.flatMap(l => l.injuries || []).find(i => i.replacedBy);
+  info(sub ? 'lesão COM substituição do banco observada ✓' : 'lesões sem reserva compatível nesta amostra');
+}
 ok('TournamentFinished recebido', !!A.finished);
 ok('grupos completos antes do mata-mata', labels.filter(l => l.startsWith('Rodada')).length === 3);
 info(`rodadas: ${labels.join(' → ')} | campeão: ${A.snap.championTeamId}`);

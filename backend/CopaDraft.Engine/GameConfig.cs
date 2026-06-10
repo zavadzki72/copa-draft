@@ -32,9 +32,12 @@ public sealed class GameConfig
     public int PRESSURE_U_AGE { get; init; } = 23;
     public bool LEADER_HALVES_PRESSURE { get; init; } = true;
 
-    // ---------- Fatigue ----------
-    // Only the effective-overall penalty cap is read by the engine's effective().
-    public int FATIGUE_PENALTY_MAX { get; init; } = 5;
+    // ---------- Fatigue (mirror de config.js) ----------
+    public int FATIGUE_OLD_AGE { get; init; } = 30;
+    public int FATIGUE_OLD { get; init; } = 2;     // 30+: +2 de cansaço por jogo
+    public int FATIGUE_YOUNG { get; init; } = 1;   // <30: +1
+    public int FATIGUE_MAX { get; init; } = 14;    // teto acumulado
+    public int FATIGUE_PENALTY_MAX { get; init; } = 5;  // teto da penalidade no overall efetivo
     public int SUBS_MAX { get; init; } = 3;
 
     // ---------- Events with impact (red card, penalty, injury) ----------

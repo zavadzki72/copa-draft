@@ -392,7 +392,7 @@ function MatchScreen({ log, me, round, sfx, speed, onSpeedChange, onFinish, onSh
             </div>
           )}
           {!done
-            ? <button className="btn-mini" onClick={finishNow}>{t('ui.match.skip')}</button>
+            ? (!fixedPace && <button className="btn-mini" onClick={finishNow}>{t('ui.match.skip')}</button>)
             : log.needsShootout
               ? <button className="btn btn-yellow" onClick={onShootout}>{t('ui.match.toShootout')}</button>
               : <button className="btn btn-green" onClick={onFinish}>{t('ui.match.seeResult')}</button>}

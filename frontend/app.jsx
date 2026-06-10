@@ -43,6 +43,7 @@ function App() {
   const ME = { name: window.I18N.t('team.name'), dream: true };
 
   const [phase, setPhase] = useState('home');   // home|draft|reveal|group|bracket|prematch|match|shootout|post|end
+  const [mpStage, setMpStage] = useState('menu'); // estágio interno do multiplayer (p/ o header)
   const [mode, setMode] = useState('classico');
   const [formation, setFormation] = useState('4-3-3');
   const [sound, setSound] = useState(profile0.sound);
@@ -370,7 +371,10 @@ function App() {
   return (
     <div className="app">
       <GameHeader
-        phase={phase === 'home' || phase === 'mp' ? 'home' : phase === 'draft' ? 'draft' : 'campaign'}
+        phase={phase === 'mp'
+          ? (mpStage === 'draft' ? 'draft'
+            : ['tournament', 'end', 'draft-wait'].includes(mpStage) ? 'campaign' : 'home')
+          : phase === 'home' ? 'home' : phase === 'draft' ? 'draft' : 'campaign'}
         hasTeam={hasTeam && phase !== 'home' && phase !== 'mp'}
         round={['prematch', 'match', 'post'].includes(phase) ? activeRound : null}
         sound={sound} onToggleSound={toggleSound}
@@ -387,7 +391,8 @@ function App() {
       )}
 
       {phase === 'mp' && (
-        <MultiplayerApp sfx={sfx} onExit={() => setPhase('home')} />
+        <MultiplayerApp sfx={sfx} onStage={setMpStage}
+          onExit={() => { setMpStage('menu'); setPhase('home'); }} />
       )}
 
       {phase === 'draft' && (
