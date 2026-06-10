@@ -502,6 +502,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   useEffect(() => {
     const offs = [
       window.MPRT.on('RoomState', (state) => {
+        roomRef.current = state; // síncrono: enterRoom lê logo após o JoinRoom resolver
         setRoom(state);
         if (state.state === 'draft' && ['lobby'].includes(stageRef.current)) setStage('draft');
         // entrei/recarreguei com torneio em andamento → resync completo
@@ -558,7 +559,17 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     try {
       await window.MPRT.connect();
       await window.MPRT.invoke('JoinRoom', code);
-      setStage('lobby');
+      // o RoomState do join chega ANTES do invoke resolver (stage ainda é
+      // 'menu'), então o handler não cobre refresh/deep-link com sala em jogo:
+      // a transição tem que ser decidida aqui, pelo estado real da sala.
+      const st = roomRef.current;
+      if (st && st.state === 'draft') {
+        setDeadline(st.draftDeadline || null);
+        setStage('draft');
+      } else if (st && ['grupos', 'mata-mata', 'encerrada'].includes(st.state)) {
+        window.MPRT.invoke('GetTournament', code).catch(() => {});
+        setStage('tournament');
+      } else setStage('lobby');
     } catch (e) {
       setError(e.message || 'Não foi possível entrar na sala.');
     } finally { setBusy(false); }
