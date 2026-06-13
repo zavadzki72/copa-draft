@@ -623,15 +623,52 @@
   .steps { grid-template-columns: 1fr; }
   .setgrid { grid-template-columns: 1fr; }
 }
+/* tablet/phone: header zones must shrink, and the language picker collapses
+   to flag+chevron so the controls cluster stops overflowing on mobile. */
+@media (max-width: 680px) {
+  .ghdr-in { padding: 0 14px; gap: 10px; }
+  .ghdr .crumbs { flex-shrink: 1; min-width: 0; overflow: hidden; }
+  .ghdr-controls { gap: 8px; }
+  .lang-pill-label { display: none; }
+  .lang-pill { padding: 0 9px; gap: 6px; }
+  /* compact the progress stepper to dots-only so the three header zones fit */
+  .pstep .plabel { display: none; }
+  .psteps { gap: 6px; }
+  .pline { width: 14px; }
+}
 @media (max-width: 520px) {
   .stage { padding: 20px 14px 56px; }
-  .ach-toast-wrap { right:10px; left:10px; top:72px; }
+  /* the progress stepper / campaign breadcrumb is decorative on mobile — drop
+     it so logo + controls fit a phone header without horizontal scroll. */
+  .ghdr-in { height: 56px; gap: 8px; padding: 0 12px; }
+  .ghdr .crumbs { display: none; }
+  .ghdr .wm-logo { height: 26px; }
+  .ghdr-controls { gap: 6px; }
+  .btn-icon { width: 36px; height: 36px; }
+  .lang-pill { height: 36px; }
+  /* sticky offsets follow the shorter (56px) mobile header */
+  .scoreboard { top: 60px; }
+  .draft-side { top: 64px; }
+  .ach-toast-wrap { right:10px; left:10px; top:64px; }
   .ach-toast { min-width:0; }
   .reveal .draw-card { padding: 30px 28px; }
   .reveal .draw-card .fi { width:96px !important; height:64px; }
   .scoreboard { padding:14px; }
   .sb-score { font-size:2rem; }
   .sb-team .tn { font-size:.9rem; }
+  /* bracket rows: let the round label take its own line so score/status wrap cleanly */
+  .brow { gap:10px; padding:14px 14px; flex-wrap:wrap; }
+  .brow .rlabel { min-width:0; flex-basis:100%; }
+  .brow .matchup { width:100%; }
+}
+/* very small phones (<=380px): shrink logo + control cluster so the campaign
+   header (language + 4 icons) still fits a 320px-wide viewport. */
+@media (max-width: 380px) {
+  .ghdr-in { gap: 6px; padding: 0 10px; }
+  .ghdr .wm-logo { height: 22px; }
+  .ghdr-controls { gap: 4px; }
+  .btn-icon { width: 32px; height: 32px; }
+  .lang-pill { padding: 0 7px; gap: 5px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .screen-fade, .tk, .die.rolling, .reveal .draw-card, .cf,
