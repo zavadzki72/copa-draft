@@ -166,4 +166,7 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
   );
 }
 
-Object.assign(window, { Die, Segmented, HomeScreen });
+// FormationSelect é reusado pelo multiplayer (ui/mp.jsx), que no build de
+// produção roda num IIFE separado — sem isto no window dá "FormationSelect is
+// not defined" e tela preta no MP. Die/Segmented/HomeScreen idem.
+Object.assign(window, { Die, Segmented, FormationSelect, HomeScreen });
