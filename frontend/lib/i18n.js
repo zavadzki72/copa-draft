@@ -243,7 +243,9 @@
           seeTeams: '👀 Ver times enviados', teamsTitle: 'Times enviados', teamsEyebrow: 'draft',
           teamsNone: 'Ninguém finalizou o draft ainda.', teamAuto: 'automático', teamYou: 'você',
         },
-        pre: { tok: 'PRÉ-JOGO', readyTitle: 'Pronto! ✓' },
+        pre: { tok: 'PRÉ-JOGO', readyTitle: 'Pronto! ✓',
+          outTitle: 'Fora desta rodada:', outSuspended: 'suspenso', outInjured: 'lesão · {n} fase(s)',
+          outSub: 'Um reserva entrou no lugar.' },
         end: {
           tok: 'TORNEIO ENCERRADO', champTitle: 'CAMPEÃO DA SALA!', viceTitle: 'Vice-campeão!',
           fellGroups: 'Você caiu na fase de grupos', fellAt: 'Você caiu em {round}',
@@ -667,7 +669,9 @@
           seeTeams: '👀 See submitted teams', teamsTitle: 'Submitted teams', teamsEyebrow: 'draft',
           teamsNone: 'Nobody has finished the draft yet.', teamAuto: 'auto', teamYou: 'you',
         },
-        pre: { tok: 'PRE-MATCH', readyTitle: 'Ready! ✓' },
+        pre: { tok: 'PRE-MATCH', readyTitle: 'Ready! ✓',
+          outTitle: 'Out this round:', outSuspended: 'suspended', outInjured: 'injured · {n} phase(s)',
+          outSub: 'A reserve took their place.' },
         end: {
           tok: 'TOURNAMENT FINISHED', champTitle: 'ROOM CHAMPION!', viceTitle: 'Runner-up!',
           fellGroups: 'You fell in the group stage', fellAt: 'You fell in {round}',
@@ -1091,7 +1095,9 @@
           seeTeams: '👀 Ver equipos enviados', teamsTitle: 'Equipos enviados', teamsEyebrow: 'draft',
           teamsNone: 'Nadie terminó el draft todavía.', teamAuto: 'automático', teamYou: 'tú',
         },
-        pre: { tok: 'PREVIO', readyTitle: '¡Listo! ✓' },
+        pre: { tok: 'PREVIO', readyTitle: '¡Listo! ✓',
+          outTitle: 'Fuera de esta ronda:', outSuspended: 'suspendido', outInjured: 'lesión · {n} fase(s)',
+          outSub: 'Un suplente entró en su lugar.' },
         end: {
           tok: 'TORNEO FINALIZADO', champTitle: '¡CAMPEÓN DE LA SALA!', viceTitle: '¡Subcampeón!',
           fellGroups: 'Caíste en la fase de grupos', fellAt: 'Caíste en {round}',

@@ -55,6 +55,10 @@ public sealed class TournamentOrchestrator(
         /// titulares cansam por jogo, banco descansa; penaliza o overall efetivo.</summary>
         public Dictionary<string, Dictionary<string, double>> Fatigue { get; } = new();
 
+        /// <summary>Suspensões (vermelho) e lesões por time, carregadas entre as
+        /// fases (mecânica do solo no MP).</summary>
+        public Dictionary<string, Dictionary<string, PlayerStatusEntry>> Status { get; } = new();
+
         // ready-gate da rodada: quem precisa clicar "iniciar" e quem já clicou
         public HashSet<Guid> RoundRequired { get; } = new();
         public HashSet<Guid> RoundReady { get; } = new();
@@ -237,11 +241,19 @@ public sealed class TournamentOrchestrator(
 
         Dictionary<string, double> FatigueOf(string teamId)
             => rt.Fatigue.TryGetValue(teamId, out var m) ? m : (rt.Fatigue[teamId] = new());
-        SideInput SideOf(string teamId) => MpFatigue.Apply(t.Teams[teamId].Side, FatigueOf(teamId));
-        void Rest(string homeId, string awayId)
+        Dictionary<string, PlayerStatusEntry> StatusOf(string teamId)
+            => rt.Status.TryGetValue(teamId, out var m) ? m : (rt.Status[teamId] = new());
+        // side efetiva: cansaço + indisponíveis (suspensos/lesionados) trocados por reservas
+        SideInput SideOf(string teamId)
+            => MpStatus.ApplyAvailability(MpFatigue.Apply(t.Teams[teamId].Side, FatigueOf(teamId)), StatusOf(teamId));
+        // após a partida: cansaço (titulares cansam/banco descansa) + status (decrementa,
+        // aplica vermelhos/lesões deste jogo). Usa a side EFETIVA (quem realmente jogou).
+        void Rest(string homeId, string awayId, MatchLog log)
         {
-            MpFatigue.UpdateAfterMatch(FatigueOf(homeId), t.Teams[homeId].Side, cfg);
-            MpFatigue.UpdateAfterMatch(FatigueOf(awayId), t.Teams[awayId].Side, cfg);
+            MpFatigue.UpdateAfterMatch(FatigueOf(homeId), SideOf(homeId), cfg);
+            MpFatigue.UpdateAfterMatch(FatigueOf(awayId), SideOf(awayId), cfg);
+            MpStatus.AdvanceAfterMatch(StatusOf(homeId), log, "home", cfg);
+            MpStatus.AdvanceAfterMatch(StatusOf(awayId), log, "away", cfg);
         }
 
         // ---------- group stage: 3 rounds ----------
@@ -265,7 +277,7 @@ public sealed class TournamentOrchestrator(
             foreach (GroupFixture fx in fixtures)
             {
                 fx.Result = logs[fx.FixtureId].Score;
-                Rest(fx.HomeId, fx.AwayId);
+                Rest(fx.HomeId, fx.AwayId, logs[fx.FixtureId]);
             }
             rt.CurrentRound = null;
             await BroadcastSnapshotAsync(code, rt);
@@ -314,7 +326,7 @@ public sealed class TournamentOrchestrator(
             {
                 (Score s, Score? p, string? w, _) = rt.TieResults[tie.TieId];
                 rt.TieResults[tie.TieId] = (s, p, w, true);
-                Rest(tie.HomeId, tie.AwayId);
+                Rest(tie.HomeId, tie.AwayId, logs[tie.TieId]);
             }
             rt.CurrentRound = null;
             await BroadcastSnapshotAsync(code, rt);
@@ -372,7 +384,9 @@ public sealed class TournamentOrchestrator(
                 {
                     var bench = rt.T.Teams[teamId].Side.Bench
                         .Select(p => new StarterRef(p.Id, p.Name, p.Pos)).ToList();
-                    var payload = new YourMatchDto(fixtureId, side, log, bench);
+                    List<OutPlayerDto> outs = rt.Status.TryGetValue(teamId, out var st)
+                        ? MpStatus.OutStarters(rt.T.Teams[teamId].Side, st) : new List<OutPlayerDto>();
+                    var payload = new YourMatchDto(fixtureId, side, log, bench, outs);
                     rt.YourMatches[userId] = payload;
                     await hub.Clients.User(userId.ToString()).SendAsync(YourMatchEvent, payload, ct);
                 }

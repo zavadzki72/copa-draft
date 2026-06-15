@@ -1,3 +1,4 @@
+using CopaDraft.Engine;
 using CopaDraft.Engine.Models;
 
 namespace CopaDraft.Api.Services;
@@ -46,4 +47,5 @@ public sealed record FixtureRefDto(string FixtureId, string HomeId, string AwayI
 /// <summary>Private payload: the full log of YOUR match for the ticker —
 /// inclui seus reservas (o log só carrega titulares).</summary>
 public sealed record YourMatchDto(
-    string FixtureId, string Side, MatchLog Log, IReadOnlyList<StarterRef> Bench);
+    string FixtureId, string Side, MatchLog Log, IReadOnlyList<StarterRef> Bench,
+    IReadOnlyList<OutPlayerDto> Out);

@@ -887,6 +887,15 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           <span className="tok">{t('mp.pre.tok')} · {mpRoundLabel(rInfo).toUpperCase()}</span>
           <MpTimer deadline={rInfo.readyDeadline} />
         </div>
+        {(yourMatch.out && yourMatch.out.length > 0) && (
+          <div className="stage narrow" style={{ paddingTop: 0 }}>
+            <div className="warn" style={{ background: 'rgba(255,90,90,.1)', borderColor: 'rgba(255,90,90,.3)' }}>
+              <span aria-hidden="true">🚑</span>
+              <span>{t('mp.pre.outTitle')} {yourMatch.out.map(o =>
+                `${o.name} (${o.reason === 'suspended' ? t('mp.pre.outSuspended') : t('mp.pre.outInjured', { n: o.n })})`).join(', ')}. {t('mp.pre.outSub')}</span>
+            </div>
+          </div>
+        )}
         <PreMatchScreen me={{ name: session.user.name, dream: true }}
           starters={myXI} bench={myBench} formation={meSide.formation} starId={null}
           round={round} fatigue={{}} playerStatus={{}} lockLineup={true}

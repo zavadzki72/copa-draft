@@ -54,6 +54,12 @@ public sealed class GameConfig
     public double MAN_DOWN_ATK { get; init; } = 0.82;
     public double MAN_DOWN_DEF { get; init; } = 0.86;
 
+    // ---------- Campaign consequences (mirror de config.js) ----------
+    public int SUSPENSION_MATCHES { get; init; } = 1;   // vermelho suspende N jogos
+    public int INJURY_PHASES_MIN { get; init; } = 1;    // lesão tira MIN..MAX fases
+    public int INJURY_PHASES_MAX { get; init; } = 2;
+    public int AWARD_MIN_MATCHES { get; init; } = 2;    // mínimo de jogos p/ prêmio de craque
+
     // ---------- Formations (each sums to 11) ----------
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> FORMATIONS { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, int>>
