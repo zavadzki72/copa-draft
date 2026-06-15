@@ -234,7 +234,7 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   );
 }
 
-function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel, onMode, onDraftTime }) {
+function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel, onMode, onDraftTime, onCupRange }) {
   const me = room.players.find(p => p.userId === meId);
   const isHost = room.hostUserId === meId;
   const readyCount = room.players.filter(p => p.ready).length;
@@ -328,6 +328,32 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLeve
         )}
         <p className="p mp-hint">{t('mp.lobby.draftTimeHint')}</p>
       </div>
+
+      {(() => {
+        const ys = window.TEAM.cupYears();
+        const from = room.cupFrom || ys[0], to = room.cupTo || ys[ys.length - 1];
+        return (
+          <div className="setcard mp-speed">
+            <span className="lab">{t('mp.lobby.cupRangeLab')}</span>
+            {isHost ? (
+              <div className="cup-range">
+                <label>{t('ui.home.cupFrom')}
+                  <select value={from} onChange={e => onCupRange(Number(e.target.value), Math.max(Number(e.target.value), to))}>
+                    {ys.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </label>
+                <label>{t('ui.home.cupTo')}
+                  <select value={to} onChange={e => onCupRange(Math.min(from, Number(e.target.value)), Number(e.target.value))}>
+                    {ys.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <p className="p mp-speed-view">{from} – {to}<span className="mp-hint">{t('mp.lobby.byHost')}</span></p>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="mp-players">
         {room.players.map(p => (
@@ -716,9 +742,16 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     if (stage === 'draft-wait' && room) window.MPRT.invoke('GetDraftTeams', room.code).catch(() => {});
   }, [stage, progress]); // eslint-disable-line
 
+  // era das seleções da sala: o draft do cliente só oferece seleções no range
+  useEffect(() => {
+    if (room && room.cupFrom > 0 && room.cupTo > 0)
+      window.TEAM.setSquadPool(window.TEAM.poolInRange(room.cupFrom, room.cupTo));
+  }, [room && room.cupFrom, room && room.cupTo]); // eslint-disable-line
+
   async function leaveAll() {
     try { if (room) await window.MPRT.invoke('LeaveRoom', room.code); } catch (e) {}
     await window.MPRT.disconnect();
+    window.TEAM.setSquadPool(null);   // some o filtro de era ao sair do MP
     onExit();
   }
 
@@ -756,6 +789,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       onLevel={(v) => window.MPRT.invoke('SetRoomLevel', room.code, v).catch(() => {})}
       onMode={(v) => window.MPRT.invoke('SetRoomMode', room.code, v).catch(() => {})}
       onDraftTime={(v) => window.MPRT.invoke('SetRoomDraftTime', room.code, v).catch(() => {})}
+      onCupRange={(f, tt) => window.MPRT.invoke('SetRoomCupRange', room.code, f, tt).catch(() => {})}
       onLeave={leaveAll} />;
 
   if (stage === 'draft') {

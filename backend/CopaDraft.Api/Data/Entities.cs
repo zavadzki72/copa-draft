@@ -41,6 +41,10 @@ public class Room
     /// <summary>Tempo do draft em segundos, escolhido no lobby (prazo p/ montar
     /// o time; expirado/ausente é autocompletado).</summary>
     public int DraftSeconds { get; set; } = 180;
+    /// <summary>Range de copas (anos) escolhido no lobby: filtra quais seleções
+    /// entram na copa (draft + IA). 0/0 = todas as copas.</summary>
+    public int CupFrom { get; set; }
+    public int CupTo { get; set; }
 
     public List<Participant> Participants { get; set; } = new();
 }

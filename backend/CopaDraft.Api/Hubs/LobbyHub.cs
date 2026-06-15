@@ -171,6 +171,21 @@ public class LobbyHub(
         }
     }
 
+    /// <summary>Era das seleções (range de copas) da sala (anfitrião, no lobby).</summary>
+    public async Task SetRoomCupRange(string code, int from, int to)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.SetCupRangeAsync(code, UserId, from, to);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
     /// <summary>Tempo do draft da sala em segundos (anfitrião, no lobby).</summary>
     public async Task SetRoomDraftTime(string code, int seconds)
     {

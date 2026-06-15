@@ -171,8 +171,12 @@ public sealed class TournamentOrchestrator(
             Side = DraftService.ToSide(p.Team!, p.User?.Name ?? "Jogador"),
         }).ToList();
 
+        // range de copas (era das seleções): filtra o pool de IA; 0/0 = todas
+        IReadOnlyList<Squad>? pool = (room.CupFrom > 0 && room.CupTo > 0)
+            ? SquadRepository.All.Where(s => s.Cup >= room.CupFrom && s.Cup <= room.CupTo).ToList()
+            : null;
         GeneratedTournament t = TournamentGenerator.Generate(
-            humans, (uint)room.Seed, GameConfig.Default, pool: null,
+            humans, (uint)room.Seed, GameConfig.Default, pool: pool,
             aiStrengthTarget: mp.Value.AiStrengthTargetFor(room.Level));
         var rt = new RunningTournament
         {

@@ -1,4 +1,5 @@
 using CopaDraft.Api.Data;
+using CopaDraft.Engine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -8,7 +9,7 @@ public sealed record PlayerDto(Guid UserId, string Name, string? Avatar, bool Is
 public sealed record RoomStateDto(
     string Code, string State, Guid HostUserId, int MaxPlayers,
     DateTimeOffset? DraftDeadline, string Speed, string Level, string Mode, int DraftSeconds,
-    DateTimeOffset ServerNow, IReadOnlyList<PlayerDto> Players);
+    int CupFrom, int CupTo, DateTimeOffset ServerNow, IReadOnlyList<PlayerDto> Players);
 
 public class RoomServiceException(string message) : Exception(message);
 
@@ -19,6 +20,12 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
 
     private MpOptions Mp => mp.Value;
 
+    // anos de copa disponíveis + tamanho mínimo de pool (copa cheia = 8×4 = 32).
+    private static readonly int MinCup = SquadRepository.All.Min(s => s.Cup);
+    private static readonly int MaxCup = SquadRepository.All.Max(s => s.Cup);
+    private static readonly int RequiredPool = TournamentGenerator.GroupCount * GameConfig.Default.GROUP_SIZE;
+    private static int PoolCount(int from, int to) => SquadRepository.All.Count(s => s.Cup >= from && s.Cup <= to);
+
     public async Task<RoomStateDto> CreateAsync(Guid hostUserId, CancellationToken ct = default)
     {
         string code = await UniqueCodeAsync(ct);
@@ -28,7 +35,7 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             State = RoomState.Waiting, Seed = Random.Shared.Next(),
             MaxPlayers = Mp.MaxPlayers, CreatedAt = DateTimeOffset.UtcNow,
             Speed = Mp.DefaultSpeed, Level = Mp.DefaultLevel, Mode = Mp.DefaultMode,
-            DraftSeconds = Mp.DraftTimerSeconds,
+            DraftSeconds = Mp.DraftTimerSeconds, CupFrom = MinCup, CupTo = MaxCup,
         };
         db.Rooms.Add(room);
         db.Participants.Add(new Participant
@@ -174,6 +181,25 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
         return await GetStateAsync(code, ct);
     }
 
+    /// <summary>Era das seleções (range de copas) da sala (anfitrião, no lobby).
+    /// O pool filtrado precisa de ao menos uma copa cheia de seleções.</summary>
+    public async Task<RoomStateDto> SetCupRangeAsync(string code, Guid userId, int from, int to, CancellationToken ct = default)
+    {
+        Room room = await RequireRoomAsync(code, ct);
+        if (room.HostUserId != userId)
+            throw new RoomServiceException("Só o anfitrião pode mudar a era das seleções.");
+        if (room.State != RoomState.Waiting)
+            throw new RoomServiceException("A era só pode mudar no lobby.");
+        if (from < MinCup || to > MaxCup || from > to)
+            throw new RoomServiceException("Intervalo de copas inválido.");
+        if (PoolCount(from, to) < RequiredPool)
+            throw new RoomServiceException($"Intervalo curto demais: a copa precisa de pelo menos {RequiredPool} seleções.");
+        room.CupFrom = from;
+        room.CupTo = to;
+        await db.SaveChangesAsync(ct);
+        return await GetStateAsync(code, ct);
+    }
+
     /// <summary>Tempo do draft da sala em segundos (anfitrião, ainda no lobby).</summary>
     public async Task<RoomStateDto> SetDraftTimeAsync(string code, Guid userId, int seconds, CancellationToken ct = default)
     {
@@ -238,7 +264,7 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
 
         return new RoomStateDto(room.Code, StateName(room.State), room.HostUserId,
             room.MaxPlayers, room.DraftDeadline, room.Speed, room.Level, room.Mode, room.DraftSeconds,
-            DateTimeOffset.UtcNow, players);
+            room.CupFrom, room.CupTo, DateTimeOffset.UtcNow, players);
     }
 
     public static string StateName(RoomState s) => s switch
