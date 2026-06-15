@@ -95,6 +95,44 @@ function MpTimer({ deadline }) {
   return <span className={`mp-timer ${left <= 20 ? 'low' : ''}`}>⏱ {mm}:{ss}</span>;
 }
 
+/* um time enviado (ver os times dos outros durante a espera do draft) */
+function MpSubmittedTeam({ team, meId }) {
+  const isMe = team.userId === meId;
+  const xiByPos = {};
+  team.starters.forEach(p => { (xiByPos[p.pos] = xiByPos[p.pos] || []).push(p); });
+  const order = ['GOL', 'ZAG', 'LAT', 'MEI', 'ATA'];
+  const avg = team.starters.length
+    ? Math.round(team.starters.reduce((s, p) => s + p.overall, 0) / team.starters.length) : 0;
+  const line = (p) => (
+    <span className="mp-team-pl" key={p.id}>
+      {team.captainId === p.id && <span className="star-dot">★ </span>}
+      {p.code && <Flag code={p.code} className="slot-flag" />} {p.name}
+      <b className="ov">{p.overall}</b>
+    </span>
+  );
+  return (
+    <div className="mp-team-card">
+      <div className="shead" style={{ margin: '14px 0 8px' }}>
+        <span className="tok">👤 {team.name}{isMe ? ` · ${t('mp.draft.teamYou')}` : ''}{team.autoFilled ? ` · ${t('mp.draft.teamAuto')}` : ''}</span>
+        <span className="meta">{team.formation} · {t('ui.draft.avgShort')} {avg}</span>
+      </div>
+      <div className="mp-team-xi">{order.flatMap(pos => (xiByPos[pos] || []).map(line))}</div>
+    </div>
+  );
+}
+
+function MpTeamsModal({ teams, meId, onClose }) {
+  const Modal = window.Modal;
+  if (!Modal) return null;
+  return (
+    <Modal title={t('mp.draft.teamsTitle')} eyebrow={t('mp.draft.teamsEyebrow')} wide onClose={onClose}>
+      {!teams || teams.length === 0
+        ? <p className="p mp-hint">{t('mp.draft.teamsNone')}</p>
+        : teams.map(tm => <MpSubmittedTeam key={tm.userId} team={tm} meId={meId} />)}
+    </Modal>
+  );
+}
+
 function MpLogin({ onDone, onExit }) {
   const btnRef = useRef(null);
   const [err, setErr] = useState(null);
@@ -187,7 +225,7 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   );
 }
 
-function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel }) {
+function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel, onMode }) {
   const me = room.players.find(p => p.userId === meId);
   const isHost = room.hostUserId === meId;
   const readyCount = room.players.filter(p => p.ready).length;
@@ -246,6 +284,23 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLeve
           </p>
         )}
         <p className="p mp-hint">{t('mp.lobby.levelHint')}</p>
+      </div>
+
+      <div className="setcard mp-speed">
+        <span className="lab">{t('mp.lobby.modeLab')}</span>
+        {isHost ? (
+          <Segmented value={room.mode || 'classico'} onChange={onMode} options={[
+            { id: 'classico', label: t('mp.lobby.modeClassic') },
+            { id: 'medium', label: t('mp.lobby.modeMedium') },
+            { id: 'almanaque', label: t('mp.lobby.modeHard') },
+          ]} />
+        ) : (
+          <p className="p mp-speed-view">
+            {t('mp.lobby.' + ({ classico: 'modeClassic', medium: 'modeMedium', almanaque: 'modeHard' }[room.mode] || 'modeClassic'))}
+            <span className="mp-hint">{t('mp.lobby.byHost')}</span>
+          </p>
+        )}
+        <p className="p mp-hint">{t('mp.lobby.modeHint')}</p>
       </div>
 
       <div className="mp-players">
@@ -483,6 +538,8 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   const [clickedRound, setClickedRound] = useState(null);   // chave da rodada em que já cliquei "iniciar"
   const [advancedRound, setAdvancedRound] = useState(null); // rodada em que cliquei "Avançar" (#5)
   const [postMatch, setPostMatch] = useState(null);  // {log, ratings} — pós-jogo (reuso do solo)
+  const [draftTeams, setDraftTeams] = useState(null); // times já enviados (ver os outros)
+  const [showTeams, setShowTeams] = useState(false);  // modal "ver times enviados" aberto
   const meId = session ? session.user.id : null;
 
   const stageRef = useRef(stage);
@@ -545,6 +602,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           setSnap(null); setYourMatch(null); setFollow(null); setSpectMatch(null);
           setPostMatch(null); setWatching(false); setReadyProgress(null);
           setClickedRound(null); setAdvancedRound(null); setFormationChosen(false); setDeadline(null); setProgress(null);
+          setDraftTeams(null); setShowTeams(false);
           setMinute(0);
           announcedRoundRef.current = null;
           openedRoundRef.current = null;
@@ -554,6 +612,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       }),
       window.MPRT.on('DraftStarted', (info) => { setDeadline(info.deadline); setStage('draft'); }),
       window.MPRT.on('DraftProgress', setProgress),
+      window.MPRT.on('DraftTeams', setDraftTeams),
       window.MPRT.on('TournamentState', (s) => {
         setSnap(s);
         if (['draft', 'draft-wait', 'lobby'].includes(stageRef.current)) setStage('tournament');
@@ -623,6 +682,12 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
     if (code && window.MPAUTH.isLoggedIn() && stage === 'menu') enterRoom(code.toUpperCase());
   }, []);
 
+  // ver os times dos outros: enquanto espero o draft, busca os já enviados
+  // (atualiza sozinho conforme mais gente envia)
+  useEffect(() => {
+    if (stage === 'draft-wait' && room) window.MPRT.invoke('GetDraftTeams', room.code).catch(() => {});
+  }, [stage, progress]); // eslint-disable-line
+
   async function leaveAll() {
     try { if (room) await window.MPRT.invoke('LeaveRoom', room.code); } catch (e) {}
     await window.MPRT.disconnect();
@@ -661,6 +726,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       onStart={() => window.MPRT.invoke('StartDraft', room.code).catch(() => {})}
       onSpeed={(v) => window.MPRT.invoke('SetRoomSpeed', room.code, v).catch(() => {})}
       onLevel={(v) => window.MPRT.invoke('SetRoomLevel', room.code, v).catch(() => {})}
+      onMode={(v) => window.MPRT.invoke('SetRoomMode', room.code, v).catch(() => {})}
       onLeave={leaveAll} />;
 
   if (stage === 'draft') {
@@ -688,7 +754,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           {deadline && <MpTimer deadline={deadline} />}
           {progress && <span className="meta">{t('mp.draft.submitted', { done: progress.submitted, total: progress.total })}</span>}
         </div>
-        <DraftScreen formation={formation} mode="classico" sfx={sfx} onConfirm={confirmDraft} />
+        <DraftScreen formation={formation} mode={(room && room.mode) || 'classico'} sfx={sfx} onConfirm={confirmDraft} />
       </div>
     );
   }
@@ -701,6 +767,15 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
         <p className="sub">{t('mp.draft.waitingOthers')}{progress ? ` (${progress.submitted}/${progress.total})` : ''}…
           {' '}{t('mp.draft.startsWhenDone')}</p>
         {deadline && <MpTimer deadline={deadline} />}
+        <div className="mp-foot" style={{ marginTop: 18 }}>
+          <button className="btn btn-ghost" onClick={() => {
+            setShowTeams(true);
+            if (room) window.MPRT.invoke('GetDraftTeams', room.code).catch(() => {});
+          }}>
+            {t('mp.draft.seeTeams')}{draftTeams ? ` (${draftTeams.length})` : ''}
+          </button>
+        </div>
+        {showTeams && <MpTeamsModal teams={draftTeams} meId={meId} onClose={() => setShowTeams(false)} />}
       </div>
     );
 

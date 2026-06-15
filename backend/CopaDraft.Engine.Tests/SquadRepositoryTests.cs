@@ -64,7 +64,7 @@ public class GameConfigTests
     {
         GameConfig c = GameConfig.Default;
         Assert.Equal(1.35, c.BASE_LAMBDA);
-        Assert.Equal(1.6, c.LAMBDA_EXP);
+        Assert.Equal(1.85, c.LAMBDA_EXP);
         Assert.Equal(90, c.MINUTES);
         Assert.Equal(30, c.ATTR_MIN);
         Assert.Equal(99, c.ATTR_MAX);

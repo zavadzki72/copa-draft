@@ -57,6 +57,43 @@
       .sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   }
 
+  // does a slot accept a player of position `pos`? (bench DEF slot allows ZAG/LAT)
+  function slotAccepts(slot, pos) {
+    return slot.allow ? slot.allow.includes(pos) : slot.pos === pos;
+  }
+  // index of the first STILL-OPEN slot that accepts `pos` (XI before bench, by
+  // slot order), or -1 if every matching slot is already filled.
+  function openSlotFor(slots, fills, pos) {
+    for (let i = 0; i < slots.length; i++) {
+      if (!fills[i] && slotAccepts(slots[i], pos)) return i;
+    }
+    return -1;
+  }
+  // NEW DRAFT: a whole selection is drawn, then the player chooses which of its
+  // players to take. A player is PICKABLE when it isn't taken yet AND its
+  // position still has an open slot. Returns every squad player (with attrs)
+  // annotated { ...player, pickable, slotIdx }, sorted by position then overall
+  // so the strongest available names surface first.
+  const POS_ORDER = { GOL: 0, ZAG: 1, LAT: 2, MEI: 3, ATA: 4 };
+  // byStrength=true ordena por overall (rating à mostra: clássico). Quando o
+  // rating está oculto (almanaque, ou medium antes do peek) ordenamos por NOME
+  // para NÃO vazar a força — senão o craque viria sempre no topo da posição.
+  function squadPickables(squad, slots, fills, takenIds, byStrength = true) {
+    return squad.players
+      .map(p => {
+        const slotIdx = takenIds.has(p.id) ? -1 : openSlotFor(slots, fills, p.pos);
+        return { ...withAttrs(p), pickable: slotIdx >= 0, slotIdx };
+      })
+      .sort((a, b) =>
+        (b.pickable - a.pickable) ||
+        ((POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9)) ||
+        (byStrength ? (b.overall - a.overall) : a.name.localeCompare(b.name, 'pt')));
+  }
+  // does a squad still have at least one pickable player for the current board?
+  function squadHasPickable(squad, slots, fills, takenIds) {
+    return squad.players.some(p => !takenIds.has(p.id) && openSlotFor(slots, fills, p.pos) >= 0);
+  }
+
   // pitch layout rows (back -> front)
   function formationRows(formation) {
     const need = window.CONFIG.FORMATIONS[formation];
@@ -340,6 +377,7 @@
   window.TEAM = {
     withAttrs, squadAvg, byGroup, bestXI,
     draftSlots, slotLabel, eligible,
+    slotAccepts, openSlotFor, squadPickables, squadHasPickable,
     squadDrawWeight,
     squadStrengthT, phaseTarget, phaseWeight, drawScaledOpponents,
     roundRobin, buildGroup, groupStandings,

@@ -742,3 +742,11 @@
 .mp-speed { margin: 0 0 14px; }
 .mp-advance-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px; }
 .mp-speed-view { color: var(--fg); font-size: .95rem; }
+
+/* ver times enviados (modal do draft) */
+.mp-team-card { border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); padding-bottom: 10px; }
+.mp-team-card:last-child { border-bottom: none; }
+.mp-team-xi { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.mp-team-pl { display: inline-flex; align-items: center; gap: 5px; font-size: .92rem; white-space: nowrap; }
+.mp-team-pl .ov { margin-left: 3px; font-variant-numeric: tabular-nums; opacity: .85; }
+.mp-team-pl .star-dot { color: var(--accent, #ffdf00); }

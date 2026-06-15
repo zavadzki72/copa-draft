@@ -203,7 +203,7 @@ ok('elim: vencedor segue vivo', info.eliminated === false);
   // regressão: TODO evento que o servidor emite precisa estar registrado no
   // wrapper — RoundReady fora da lista deixou o pré-jogo invisível e prendeu
   // o jogador no pós-jogo (bug real de 2026-06-10)
-  const SERVER_EVENTS = ['RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'LobbyError',
+  const SERVER_EVENTS = ['RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'DraftTeams', 'LobbyError',
     'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
     'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished'];
   const missing = SERVER_EVENTS.filter(e => typeof handlers[e] !== 'function');

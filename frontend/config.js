@@ -128,8 +128,8 @@ window.CONFIG = {
      range (0 = weakest pool, 1 = strongest). The group is the softest pool;
      difficulty ramps up to the final. OPP_STRENGTH_BIAS sharpens the seeded
      weighting toward that target (0 = uniform draw). Keys: 'grupos' + ROUND ids. */
-  PHASE_STRENGTH: { grupos: 0.12, oitavas: 0.34, quartas: 0.56, semi: 0.78, final: 1.0 },
-  OPP_STRENGTH_BIAS: 7,   // mais alto = seleções mais fortes/conhecidas dominam as fases finais
+  PHASE_STRENGTH: { grupos: 0.12, oitavas: 0.42, quartas: 0.70, semi: 0.90, final: 1.0 },
+  OPP_STRENGTH_BIAS: 10,  // mais alto = seleções mais fortes/conhecidas dominam as fases finais
 
   /* ---------- Draft draw bias ----------
      Stronger selections (by squad average) are more likely to come up on the

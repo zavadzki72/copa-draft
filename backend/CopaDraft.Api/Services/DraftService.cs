@@ -11,6 +11,14 @@ public sealed record SubmitTeamRequest(
 
 public sealed record DraftProgressDto(int Submitted, int Total, IReadOnlyList<Guid> SubmittedUserIds);
 
+/// <summary>A resolved player line for the "ver times enviados" view.</summary>
+public sealed record DraftPlayerDto(string Id, string Name, string Pos, string? Code, int Cup, int Overall);
+
+/// <summary>A participant's submitted team, players resolved for display.</summary>
+public sealed record SubmittedTeamDto(
+    Guid UserId, string Name, string Formation, string? CaptainId, bool AutoFilled,
+    IReadOnlyList<DraftPlayerDto> Starters, IReadOnlyList<DraftPlayerDto> Bench);
+
 /// <summary>
 /// Receives submitted dream teams during the draft phase, validates them
 /// against the shared squad pool + formation rules, and autofills expired or
@@ -84,6 +92,39 @@ public sealed class DraftService(AppDbContext db)
     {
         DraftProgressDto p = await ProgressAsync(code, ct);
         return p.Submitted == p.Total;
+    }
+
+    /// <summary>Times já enviados (submetidos ou autocompletados) da sala, com os
+    /// jogadores resolvidos — usado pra "ver os times dos outros" durante a
+    /// espera do draft.</summary>
+    public async Task<IReadOnlyList<SubmittedTeamDto>> SubmittedTeamsAsync(
+        string code, Guid callerId, CancellationToken ct = default)
+    {
+        Room room = await db.Rooms.AsNoTracking()
+            .Include(r => r.Participants).ThenInclude(p => p.User)
+            .Include(r => r.Participants).ThenInclude(p => p.Team)
+            .SingleOrDefaultAsync(r => r.Code == code, ct)
+            ?? throw new RoomServiceException("Esta sala não está disponível.");
+        // só membros da sala veem os times enviados (evita vazamento entre salas)
+        if (room.Participants.All(p => p.UserId != callerId))
+            throw new RoomServiceException("Você não está nesta sala.");
+
+        static DraftPlayerDto Resolve(string id)
+        {
+            Player p = SquadRepository.PlayersById[id];
+            return new DraftPlayerDto(p.Id, p.Name, p.Pos, p.Code, p.Cup, p.Overall);
+        }
+
+        var list = new List<SubmittedTeamDto>();
+        foreach (Participant part in room.Participants.Where(p => p.Team is not null).OrderBy(p => p.JoinOrder))
+        {
+            SubmittedTeam team = part.Team!;
+            List<DraftPlayerDto> starters = JsonSerializer.Deserialize<List<string>>(team.StartersJson)!.Select(Resolve).ToList();
+            List<DraftPlayerDto> bench = JsonSerializer.Deserialize<List<string>>(team.BenchJson)!.Select(Resolve).ToList();
+            list.Add(new SubmittedTeamDto(part.UserId, part.User?.Name ?? "Jogador",
+                team.Formation, team.CaptainId, team.AutoFilled, starters, bench));
+        }
+        return list;
     }
 
     /// <summary>Builds the engine side for a participant's submitted team.</summary>

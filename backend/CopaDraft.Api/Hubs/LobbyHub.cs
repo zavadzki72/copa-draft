@@ -20,6 +20,7 @@ public class LobbyHub(
     public const string DraftStartedEvent = "DraftStarted";
     public const string DraftProgressEvent = "DraftProgress";
     public const string DraftCompleteEvent = "DraftComplete";
+    public const string DraftTeamsEvent = "DraftTeams";
     public const string ErrorEvent = "LobbyError";
 
     private Guid UserId => JwtOptions.UserId(Context.User!);
@@ -92,6 +93,22 @@ public class LobbyHub(
         }
     }
 
+    /// <summary>Devolve ao chamador os times já enviados na sala (ver os times
+    /// dos outros enquanto se espera o fim do draft).</summary>
+    public async Task GetDraftTeams(string code)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            IReadOnlyList<SubmittedTeamDto> teams = await draft.SubmittedTeamsAsync(code, UserId);
+            await Clients.Caller.SendAsync(DraftTeamsEvent, teams);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
     public const string WatchMatchEvent = "WatchMatch";
 
     /// <summary>"Iniciar partida" do pré-jogo: marca o jogador como pronto para a
@@ -131,6 +148,21 @@ public class LobbyHub(
         try
         {
             RoomStateDto state = await rooms.SetLevelAsync(code, UserId, level);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
+    /// <summary>Modo do draft da sala (anfitrião, no lobby).</summary>
+    public async Task SetRoomMode(string code, string mode)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.SetModeAsync(code, UserId, mode);
             await Clients.Group(code).SendAsync(RoomStateEvent, state);
         }
         catch (RoomServiceException e)

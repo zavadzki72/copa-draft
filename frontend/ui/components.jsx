@@ -199,8 +199,10 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onTogg
 }
 
 /* a player tile used in the draft pool */
-function PlayerTile({ p, picked, isStar, disabled, mode, onClick }) {
-  const hideRatings = mode === 'almanaque';
+function PlayerTile({ p, picked, isStar, disabled, mode, revealRatings = true, onClick }) {
+  // almanaque esconde sempre; medium esconde até o jogador gastar um "ver overs"
+  // (revealRatings); clássico mostra sempre.
+  const hideRatings = mode === 'almanaque' || (mode === 'medium' && !revealRatings);
   return (
     <button
       className={`ptile ${picked ? 'picked' : ''} ${isStar ? 'star' : ''} ${disabled ? 'dim' : ''}`}

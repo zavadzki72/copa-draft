@@ -35,6 +35,9 @@ public class Room
     /// <summary>Nível (dificuldade) escolhido no lobby: controla a força das
     /// seleções de IA que preenchem a copa (facil|normal|dificil|lenda).</summary>
     public string Level { get; set; } = "normal";
+    /// <summary>Modo do draft escolhido no lobby (classico|medium|almanaque):
+    /// só afeta a experiência do draft no cliente; o servidor apenas o propaga.</summary>
+    public string Mode { get; set; } = "classico";
 
     public List<Participant> Participants { get; set; } = new();
 }

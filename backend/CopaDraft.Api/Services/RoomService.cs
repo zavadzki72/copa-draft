@@ -7,7 +7,7 @@ namespace CopaDraft.Api.Services;
 public sealed record PlayerDto(Guid UserId, string Name, string? Avatar, bool IsHost, bool Ready, string Presence, bool HasTeam);
 public sealed record RoomStateDto(
     string Code, string State, Guid HostUserId, int MaxPlayers,
-    DateTimeOffset? DraftDeadline, string Speed, string Level, IReadOnlyList<PlayerDto> Players);
+    DateTimeOffset? DraftDeadline, string Speed, string Level, string Mode, IReadOnlyList<PlayerDto> Players);
 
 public class RoomServiceException(string message) : Exception(message);
 
@@ -26,7 +26,7 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             Id = Guid.NewGuid(), Code = code, HostUserId = hostUserId,
             State = RoomState.Waiting, Seed = Random.Shared.Next(),
             MaxPlayers = Mp.MaxPlayers, CreatedAt = DateTimeOffset.UtcNow,
-            Speed = Mp.DefaultSpeed, Level = Mp.DefaultLevel,
+            Speed = Mp.DefaultSpeed, Level = Mp.DefaultLevel, Mode = Mp.DefaultMode,
         };
         db.Rooms.Add(room);
         db.Participants.Add(new Participant
@@ -156,6 +156,21 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
         return await GetStateAsync(code, ct);
     }
 
+    /// <summary>Modo do draft da sala (anfitrião, ainda no lobby).</summary>
+    public async Task<RoomStateDto> SetModeAsync(string code, Guid userId, string mode, CancellationToken ct = default)
+    {
+        Room room = await RequireRoomAsync(code, ct);
+        if (room.HostUserId != userId)
+            throw new RoomServiceException("Só o anfitrião pode mudar o modo.");
+        if (room.State != RoomState.Waiting)
+            throw new RoomServiceException("O modo só pode mudar no lobby.");
+        if (!Mp.Modes.Contains(mode))
+            throw new RoomServiceException("Modo inválido.");
+        room.Mode = mode;
+        await db.SaveChangesAsync(ct);
+        return await GetStateAsync(code, ct);
+    }
+
     /// <summary>Revanche: sala encerrada volta ao lobby — novo seed, ready
     /// zerado, times e registro do torneio descartados. Só o anfitrião.</summary>
     public async Task<RoomStateDto> ResetForRematchAsync(string code, Guid userId, CancellationToken ct = default)
@@ -204,7 +219,7 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             p.IsHost, p.Ready, PresenceName(p.Presence), p.Team is not null)).ToList();
 
         return new RoomStateDto(room.Code, StateName(room.State), room.HostUserId,
-            room.MaxPlayers, room.DraftDeadline, room.Speed, room.Level, players);
+            room.MaxPlayers, room.DraftDeadline, room.Speed, room.Level, room.Mode, players);
     }
 
     public static string StateName(RoomState s) => s switch

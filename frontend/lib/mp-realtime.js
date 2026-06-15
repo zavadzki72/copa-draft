@@ -7,7 +7,7 @@
   // ATENÇÃO: todo evento novo do hub PRECISA entrar nesta lista, senão o
   // wrapper nunca o entrega aos assinantes (tests/mp.test.js cobre a lista).
   const EVENTS = [
-    'RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'LobbyError',
+    'RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'DraftTeams', 'LobbyError',
     'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
     'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished',
   ];

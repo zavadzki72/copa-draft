@@ -153,6 +153,7 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
             value={mode} onChange={setMode}
             options={[
               { id: 'classico', label: t('ui.home.modeClassic'), hint: t('ui.home.modeClassicHint') },
+              { id: 'medium', label: t('ui.home.modeMedium'), hint: t('ui.home.modeMediumHint') },
               { id: 'almanaque', label: t('ui.home.modeAlmanac'), hint: t('ui.home.modeAlmanacHint') },
             ]}
           />

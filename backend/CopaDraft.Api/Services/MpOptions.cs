@@ -54,6 +54,12 @@ public sealed class MpOptions
     public double? AiStrengthTargetFor(string? level)
         => level is not null && Levels.TryGetValue(level, out double t) ? t : null;
 
+    /// <summary>Modos de draft selecionáveis no lobby. Puramente client-side
+    /// (re-rolls, espiar overs, draft às cegas); o servidor só valida e propaga.</summary>
+    public HashSet<string> Modes { get; set; } = new() { "classico", "medium", "almanaque" };
+
+    public string DefaultMode { get; set; } = "classico";
+
     /// <summary>Pause between rounds so players can read tables/bracket.</summary>
     public int InterRoundSeconds { get; set; } = 5;
 

@@ -83,9 +83,9 @@ public sealed class GameConfig
     public IReadOnlyDictionary<string, double> PHASE_STRENGTH { get; init; } =
         new Dictionary<string, double>
         {
-            ["grupos"] = 0.12, ["oitavas"] = 0.34, ["quartas"] = 0.56, ["semi"] = 0.78, ["final"] = 1.0,
+            ["grupos"] = 0.12, ["oitavas"] = 0.42, ["quartas"] = 0.70, ["semi"] = 0.90, ["final"] = 1.0,
         };
-    public double OPP_STRENGTH_BIAS { get; init; } = 7;  // mais alto = seleções mais fortes/conhecidas nas fases finais
+    public double OPP_STRENGTH_BIAS { get; init; } = 10;  // mais alto = seleções mais fortes/conhecidas nas fases finais
 
     // ---------- Draft draw bias ----------
     public double DRAFT_STRENGTH_BIAS { get; init; } = 0.15;

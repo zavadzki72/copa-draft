@@ -1,11 +1,14 @@
 /* ============================================================
    COPA DRAFT — ui/draft.jsx
    DICE DRAFT.
-   • Pick ANY open slot to draft next (start with the striker if
-     you like). • Roll the die → a selection is drawn → choose one
-     of its players. • Clássico: 2 re-rolls for the whole draft. Almanaque:
-     none. • Once full, swap starters ↔ reserves and crown a
-     captain, then confirm. Your team is a mosaic of icons.
+   • Roll the die → a WHOLE selection is drawn → pick any of its
+     players whose position still has an open slot (it fills the
+     first matching slot). This gives access to the selection's best
+     names regardless of position. • Re-rolls: clássico/medium 2,
+     almanaque 0. • Overs: clássico always visible, almanaque always
+     hidden, medium hidden with 2 "peek" reveals per draft.
+   • Once full, swap starters ↔ reserves and crown a captain, then
+     confirm. Your team is a mosaic of icons.
    ============================================================ */
 function DraftScreen({ formation, mode, sfx, onConfirm }) {
   const C = window.CONFIG;
@@ -14,13 +17,15 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
   const slots = useMemo(() => window.TEAM.draftSlots(formation), [formation]);
   const total = slots.length;
   const MAX_REROLL = mode === 'almanaque' ? 0 : 2;
+  const MAX_PEEK = mode === 'medium' ? 2 : 0;
 
   const [fills, setFills] = useState(() => Array(total).fill(undefined));
-  const [activeSlot, setActiveSlot] = useState(0);
   const [step, setStep] = useState('roll');     // roll | rolling | choose
-  const [drawn, setDrawn] = useState(null);      // { squad, eligible }
+  const [drawn, setDrawn] = useState(null);      // { squad, players:[{...,pickable,slotIdx}] }
   const [dieValue, setDieValue] = useState(5);
   const [rerollsLeft, setRerollsLeft] = useState(MAX_REROLL);
+  const [peeksLeft, setPeeksLeft] = useState(MAX_PEEK);  // "ver overs": orçamento do draft (medium)
+  const [peeked, setPeeked] = useState(false);   // overs revelados no sorteio ATUAL (medium)
   const [starId, setStarId] = useState(null);
   const [swapBench, setSwapBench] = useState(null);  // bench slot idx selected to swap
   const rollTimer = useRef(null);
@@ -29,13 +34,9 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
   const allFilled = filledCount === total;
   const takenIds = new Set(fills.filter(Boolean).map(p => p.id));
 
-  // reset the roll UI for each new slot — but NOT the rerolls (those are a draft-wide budget)
-  useEffect(() => {
-    setStep('roll'); setDrawn(null);
-    return () => rollTimer.current && clearInterval(rollTimer.current);
-  }, [activeSlot]); // eslint-disable-line
-  // re-rolls are a budget for the WHOLE draft, not per slot — (re)set only when the mode changes
-  useEffect(() => { setRerollsLeft(MAX_REROLL); }, [mode]); // eslint-disable-line
+  useEffect(() => () => rollTimer.current && clearInterval(rollTimer.current), []);
+  // re-rolls e peeks são orçamento do draft INTEIRO — (re)seta só quando o modo muda
+  useEffect(() => { setRerollsLeft(MAX_REROLL); setPeeksLeft(MAX_PEEK); }, [mode]); // eslint-disable-line
 
   const sameGroup = (a, b) => a.pos === b.pos;
 
@@ -50,26 +51,26 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     return squads[squads.length - 1];
   }
 
+  // NOVO SORTEIO: o dado sorteia uma SELEÇÃO INTEIRA (entre as que ainda têm
+  // jogador aproveitável); o jogador escolhe quem levar — qualquer posição que
+  // ainda tenha vaga aberta. Isso dá acesso aos melhores nomes da seleção.
   function doDraw() {
-    setStep('rolling');
+    setStep('rolling'); setPeeked(false);
     beep('dice');
     if (rollTimer.current) clearInterval(rollTimer.current);
     rollTimer.current = setInterval(() => setDieValue(1 + Math.floor(Math.random() * 6)), 70);
-    const slot = slots[activeSlot];
     setTimeout(() => {
       clearInterval(rollTimer.current);
-      // every selection with an eligible player for this slot, then a weighted draw
-      const candidates = window.SQUADS
-        .map(sq => ({ sq, elig: window.TEAM.eligible(slot, sq, takenIds) }))
-        .filter(c => c.elig.length);
-      let squad = null, elig = [];
+      const candidates = window.SQUADS.filter(sq => window.TEAM.squadHasPickable(sq, slots, fills, takenIds));
+      let squad = null, players = [];
       if (candidates.length) {
-        const chosen = weightedPickSquad(candidates.map(c => c.sq));
-        const c = candidates.find(x => x.sq === chosen) || candidates[0];
-        squad = c.sq; elig = c.elig;
+        squad = weightedPickSquad(candidates);
+        // clássico mostra overs → ordena por força; medium/almanaque escondem →
+        // ordena por nome pra não vazar quem é o craque da seleção
+        players = window.TEAM.squadPickables(squad, slots, fills, takenIds, mode === 'classico');
       }
       setDieValue(1 + Math.floor(Math.random() * 6));
-      setDrawn({ squad, eligible: elig });
+      setDrawn({ squad, players });
       setStep('choose');
     }, 620);
   }
@@ -80,43 +81,47 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     doDraw();
   }
 
+  // "ver overs" (medium): revela os ratings da seleção sorteada AGORA, gastando
+  // um do orçamento. Vale só pro sorteio atual.
+  function peek() {
+    if (peeksLeft <= 0 || peeked) return;
+    setPeeksLeft(n => n - 1); setPeeked(true); beep('pick');
+  }
+
   function pick(p) {
+    if (!p.pickable) return;
+    const idx = window.TEAM.openSlotFor(slots, fills, p.pos);  // recomputa do estado atual
+    if (idx < 0) return;
     beep('pick');
-    const nf = [...fills]; nf[activeSlot] = p;
-    setFills(nf); setDrawn(null); setStep('roll');
+    const { pickable, slotIdx, ...clean } = p;  // não persiste campos internos do sorteio
+    const nf = [...fills]; nf[idx] = clean;
+    setFills(nf); setDrawn(null); setStep('roll'); setPeeked(false);
     if (nf.every(Boolean)) {
       const cap = [...nf.slice(0, 11)].sort((a, b) => b.overall - a.overall)[0];
       setStarId(cap.id);
-    } else {
-      const next = nf.findIndex(x => !x);
-      setActiveSlot(next);
     }
   }
 
-  function selectSlot(i) {
-    if (allFilled) return;          // in review, slot clicks do captain/swap
-    if (fills[i]) return;           // a defined slot is LOCKED — clicking it no longer wipes the pick
-    setActiveSlot(i);
-  }
-
-  // fill every still-empty slot with a random eligible player from a random squad
+  // completa todas as vagas abertas: sorteia seleções e escolhe um jogador
+  // aproveitável aleatório, até o elenco encher.
   function randomFill() {
     const next = [...fills];
     const taken = new Set(next.filter(Boolean).map(p => p.id));
-    for (let i = 0; i < total; i++) {
-      if (next[i]) continue;
-      const slot = slots[i];
-      // weighted draw among selections that still have an eligible player
-      const candidates = window.SQUADS
-        .map(sq => ({ sq, elig: window.TEAM.eligible(slot, sq, taken) }))
-        .filter(c => c.elig.length);
-      if (!candidates.length) continue;
-      const chosen = weightedPickSquad(candidates.map(c => c.sq));
-      const c = candidates.find(x => x.sq === chosen) || candidates[0];
-      const pickP = c.elig[Math.floor(Math.random() * c.elig.length)];
-      next[i] = pickP; taken.add(pickP.id);
+    let guard = 0;
+    while (next.some(x => !x) && guard < 500) {
+      guard++;
+      const candidates = window.SQUADS.filter(sq => window.TEAM.squadHasPickable(sq, slots, next, taken));
+      if (!candidates.length) break;
+      const squad = weightedPickSquad(candidates);
+      const picks = window.TEAM.squadPickables(squad, slots, next, taken).filter(p => p.pickable);
+      if (!picks.length) continue;
+      const pickP = picks[Math.floor(Math.random() * picks.length)];
+      const idx = window.TEAM.openSlotFor(slots, next, pickP.pos);
+      if (idx < 0) continue;
+      const { pickable, slotIdx, ...clean } = pickP;  // não persiste campos internos
+      next[idx] = clean; taken.add(clean.id);
     }
-    setFills(next); setDrawn(null); setStep('roll');
+    setFills(next); setDrawn(null); setStep('roll'); setPeeked(false);
     if (!starId) {
       const cap = [...next.slice(0, 11)].filter(Boolean).sort((a, b) => b.overall - a.overall)[0];
       if (cap) setStarId(cap.id);
@@ -167,13 +172,12 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
           <div className="slot-list">
             {xiSlots.map((s, i) => {
               const p = fills[i];
-              const active = !allFilled && i === activeSlot;
               const swapTarget = swapActive && p && sameGroup(p, swapActive);
-              const cls = ['slot', active ? 'active' : '', allFilled && p ? 'pick-cap' : '',
+              const cls = ['slot', allFilled && p ? 'pick-cap' : '',
                 swapTarget ? 'swap-target' : '', !allFilled && p ? 'locked' : ''].join(' ');
               return (
                 <div className={cls} key={i}
-                  onClick={() => allFilled ? onStarterClick(i) : selectSlot(i)}>
+                  onClick={() => { if (allFilled) onStarterClick(i); }}>
                   <span className="pp">{s.pos}</span>
                   {p ? (
                     <>
@@ -183,7 +187,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                       </span>
                       {mode !== 'almanaque' && <span className="ov">{p.overall}</span>}
                     </>
-                  ) : <span className="nm empty">{active ? t('ui.draft.yourTurn') : t('ui.draft.tapToDraw')}</span>}
+                  ) : <span className="nm empty">{t('ui.draft.slotEmpty')}</span>}
                 </div>
               );
             })}
@@ -201,13 +205,11 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
             {benchSlots.map((s, bi) => {
               const idx = 11 + bi;
               const p = fills[idx];
-              const active = !allFilled && idx === activeSlot;
               const isSwapping = swapBench === idx;
-              const cls = ['slot', active ? 'active' : '', isSwapping ? 'swapping' : '',
+              const cls = ['slot', isSwapping ? 'swapping' : '',
                 !allFilled && p ? 'locked' : ''].join(' ');
               return (
-                <div className={cls} key={bi}
-                  onClick={() => { if (!allFilled) selectSlot(idx); }}>
+                <div className={cls} key={bi}>
                   <span className="pp">{s.allow ? 'DEF' : s.pos}</span>
                   {p ? (
                     <>
@@ -220,7 +222,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                         </button>
                       )}
                     </>
-                  ) : <span className="nm empty">{active ? t('ui.draft.yourTurn') : t('ui.draft.tapToDraw')}</span>}
+                  ) : <span className="nm empty">{t('ui.draft.slotEmpty')}</span>}
                 </div>
               );
             })}
@@ -269,8 +271,6 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
   }
 
   // ============ DRAFTING ============
-  const slot = slots[activeSlot];
-  const posWord = t('pos.' + (slot.allow ? 'DEF' : slot.pos)).toLowerCase();
   return (
     <div className="stage screen-fade">
       <div className="shead">
@@ -295,8 +295,8 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
         <div className="draft-pool">
           <div className="rollpanel">
             <div className="rp-head">
-              <span className="rp-step">{t('ui.draft.drawingFor')}</span>
-              <span className="rp-pos">{window.TEAM.slotLabel(slot)}</span>
+              <span className="rp-step">{t('ui.draft.rollTitle')}</span>
+              <span className="rp-pos">{filledCount}/{total}</span>
             </div>
 
             {step !== 'choose' && (
@@ -304,7 +304,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                 <Die value={dieValue} rolling={step === 'rolling'} />
                 {step === 'roll' && (
                   <>
-                    <p className="rp-hint">{t('ui.draft.rollHint', { pos: posWord })}</p>
+                    <p className="rp-hint">{t('ui.draft.rollAnyHint')}</p>
                     <button className="btn btn-green" style={{ fontSize: 16, padding: '14px 34px' }} onClick={doDraw}>{t('ui.draft.rollBtn')}</button>
                   </>
                 )}
@@ -312,27 +312,36 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
               </div>
             )}
 
-            {step === 'choose' && drawn && (
+            {step === 'choose' && drawn && drawn.squad && (
               <div className="rp-choose">
                 <div className="drawn-banner">
                   <Flag code={drawn.squad.code} />
                   <div>
                     <div className="db-team">{drawn.squad.team} <span>{drawn.squad.cup}</span></div>
-                    <div className="db-sub">{t('ui.draft.drawnSub', { pos: posWord })}</div>
+                    <div className="db-sub">{t('ui.draft.drawnPickSub')}</div>
                   </div>
-                  {MAX_REROLL > 0 && (
-                    <button className="btn-mini reroll" disabled={rerollsLeft <= 0}
-                      onClick={reroll} style={rerollsLeft <= 0 ? { opacity: .4, cursor: 'not-allowed' } : {}}>
-                      {t('ui.draft.reroll', { n: rerollsLeft })}
-                    </button>
-                  )}
+                  <div className="drawn-actions">
+                    {MAX_PEEK > 0 && (
+                      <button className="btn-mini peek" disabled={peeked || peeksLeft <= 0}
+                        onClick={peek} style={(peeked || peeksLeft <= 0) ? { opacity: .4, cursor: 'not-allowed' } : {}}>
+                        {peeked ? t('ui.draft.peeked') : t('ui.draft.peek', { n: peeksLeft })}
+                      </button>
+                    )}
+                    {MAX_REROLL > 0 && (
+                      <button className="btn-mini reroll" disabled={rerollsLeft <= 0}
+                        onClick={reroll} style={rerollsLeft <= 0 ? { opacity: .4, cursor: 'not-allowed' } : {}}>
+                        {t('ui.draft.reroll', { n: rerollsLeft })}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {MAX_REROLL === 0 && (
                   <p className="rp-hint" style={{ margin: '0 0 12px', fontSize: 13 }}>{t('ui.draft.almanacNote')}</p>
                 )}
                 <div className="poolcols">
-                  {drawn.eligible.map(p => (
-                    <PlayerTile key={p.id} p={p} mode={mode} picked={false} isStar={false}
+                  {drawn.players.map(p => (
+                    <PlayerTile key={p.id} p={p} mode={mode} revealRatings={peeked}
+                      picked={false} isStar={false} disabled={!p.pickable}
                       onClick={() => pick(p)} />
                   ))}
                 </div>
