@@ -559,6 +559,35 @@ function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
         {!iAmChampion && <p className="sub">{t('mp.end.championLine')} <strong>{champion ? mpTeamInfo(snap, champion).name : '—'}</strong></p>}
         <p className="sub">{iAmChampion ? t('mp.end.champSub') : t('mp.end.fellSub')}</p>
       </div>
+
+      {snap.awards && (() => {
+        const a = snap.awards;
+        const cards = [
+          { ic: '👟', lab: t('mp.end.awTopScorer'), p: a.topScorer, stat: p => t('mp.end.awGoals', { n: p.goals }) },
+          { ic: '⭐', lab: t('mp.end.awBestPlayer'), p: a.bestPlayer, stat: p => t('mp.end.awAvg', { n: p.avg }) },
+          { ic: '🧤', lab: t('mp.end.awKeeper'), p: a.bestKeeper, stat: p => t('mp.end.awCleanSheets', { n: p.cleanSheets }) },
+          { ic: '🎩', lab: t('mp.end.awPlaymaker'), p: a.playmaker, stat: p => t('mp.end.awAssists', { n: p.assists }) },
+        ].filter(c => c.p);
+        if (!cards.length) return null;
+        return (
+          <div className="mp-awards">
+            <div className="shead" style={{ margin: '6px 0 8px' }}><span className="tok">{t('mp.end.awardsTok')}</span></div>
+            <div className="setgrid">
+              {cards.map((c, i) => (
+                <div className="setcard mp-award" key={i}>
+                  <span className="mp-award-ic">{c.ic}</span>
+                  <div>
+                    <span className="lab">{c.lab}</span>
+                    <div className="mp-award-name">{c.p.name}</div>
+                    <div className="mp-award-stat">{c.stat(c.p)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="mp-foot">
         <button className="btn btn-ghost" onClick={onBackToTables}>{t('mp.end.seeCampaign')}</button>
         {isHost

@@ -27,7 +27,8 @@ public sealed record TournamentSnapshotDto(
     IReadOnlyList<GroupDto> Groups,
     IReadOnlyList<BracketRoundDto> Bracket,
     string? ChampionTeamId,
-    RoundInfoDto? CurrentRound);
+    RoundInfoDto? CurrentRound,
+    CampaignAwardsDto? Awards = null);
 
 /// <summary>Pacing info for the round in progress (server clock authority).
 /// O STATUS faz parte do snapshot — o cliente deriva a UI dele (fonte única

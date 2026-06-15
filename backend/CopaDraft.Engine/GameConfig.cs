@@ -60,6 +60,17 @@ public sealed class GameConfig
     public int INJURY_PHASES_MAX { get; init; } = 2;
     public int AWARD_MIN_MATCHES { get; init; } = 2;    // mínimo de jogos p/ prêmio de craque
 
+    // ---------- Ratings (mirror de config.js; nota da campanha sem o ruído) ----------
+    public double RATING_BASE { get; init; } = 6.0;
+    public double RATING_GOAL { get; init; } = 1.0;
+    public double RATING_ASSIST { get; init; } = 0.5;
+    public double RATING_SAVE { get; init; } = 0.4;
+    public double RATING_BIGCHANCE { get; init; } = 0.3;
+    public double RATING_CONCEDE { get; init; } = -0.3;
+    public double RATING_RED { get; init; } = -1.5;
+    public double RATING_MIN { get; init; } = 4.0;
+    public double RATING_MAX { get; init; } = 10.0;
+
     // ---------- Formations (each sums to 11) ----------
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> FORMATIONS { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, int>>

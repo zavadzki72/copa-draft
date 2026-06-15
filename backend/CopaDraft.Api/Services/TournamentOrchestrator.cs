@@ -59,6 +59,9 @@ public sealed class TournamentOrchestrator(
         /// fases (mecânica do solo no MP).</summary>
         public Dictionary<string, Dictionary<string, PlayerStatusEntry>> Status { get; } = new();
 
+        /// <summary>Acúmulo de stats do torneio inteiro (prêmios de fim de copa).</summary>
+        public Dictionary<string, PlayerTally> Tally { get; } = new();
+
         // ready-gate da rodada: quem precisa clicar "iniciar" e quem já clicou
         public HashSet<Guid> RoundRequired { get; } = new();
         public HashSet<Guid> RoundReady { get; } = new();
@@ -254,6 +257,7 @@ public sealed class TournamentOrchestrator(
             MpFatigue.UpdateAfterMatch(FatigueOf(awayId), SideOf(awayId), cfg);
             MpStatus.AdvanceAfterMatch(StatusOf(homeId), log, "home", cfg);
             MpStatus.AdvanceAfterMatch(StatusOf(awayId), log, "away", cfg);
+            MpStats.Accumulate(rt.Tally, log, cfg);   // prêmios de fim de copa
         }
 
         // ---------- group stage: 3 rounds ----------
@@ -495,7 +499,8 @@ public sealed class TournamentOrchestrator(
             }).ToList()
         )).ToList();
 
-        return new TournamentSnapshotDto(rt.Phase, groups, bracket, rt.ChampionTeamId, rt.CurrentRound);
+        CampaignAwardsDto? awards = rt.Tally.Count > 0 ? MpStats.Awards(rt.Tally, cfg) : null;
+        return new TournamentSnapshotDto(rt.Phase, groups, bracket, rt.ChampionTeamId, rt.CurrentRound, awards);
     }
 
     private Task BroadcastSnapshotAsync(string code, RunningTournament rt)
