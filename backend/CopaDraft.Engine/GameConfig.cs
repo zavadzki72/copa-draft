@@ -10,8 +10,8 @@ public sealed class GameConfig
 {
     // ---------- Match engine ----------
     public double BASE_LAMBDA { get; init; } = 1.35;
-    public double LAMBDA_EXP { get; init; } = 1.6;
-    public double ZEBRA_Z { get; init; } = 0.25;
+    public double LAMBDA_EXP { get; init; } = 1.85;  // maior = força pesa mais, menos zebra
+    public double ZEBRA_Z { get; init; } = 0.14;     // menor = menos zebra (amplitude do fator "dia")
     public int MINUTES { get; init; } = 90;
     public int ET_MINUTES { get; init; } = 30;
     public double ET_LAMBDA_SCALE { get; init; } = 30.0 / 90.0;
@@ -85,7 +85,7 @@ public sealed class GameConfig
         {
             ["grupos"] = 0.12, ["oitavas"] = 0.34, ["quartas"] = 0.56, ["semi"] = 0.78, ["final"] = 1.0,
         };
-    public double OPP_STRENGTH_BIAS { get; init; } = 5;
+    public double OPP_STRENGTH_BIAS { get; init; } = 7;  // mais alto = seleções mais fortes/conhecidas nas fases finais
 
     // ---------- Draft draw bias ----------
     public double DRAFT_STRENGTH_BIAS { get; init; } = 0.15;

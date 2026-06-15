@@ -6,8 +6,8 @@
 window.CONFIG = {
   /* ---------- Match engine ---------- */
   BASE_LAMBDA: 1.35,      // base expected goals scalar
-  LAMBDA_EXP: 1.6,        // attack/defense ratio exponent
-  ZEBRA_Z: 0.25,          // "dia" form multiplier amplitude: day = 1 + rand(-z,+z)
+  LAMBDA_EXP: 1.85,       // attack/defense ratio exponent (maior = força pesa mais, menos zebra)
+  ZEBRA_Z: 0.14,          // "dia" form multiplier amplitude: day = 1 + rand(-z,+z) (menor = menos zebra)
   MINUTES: 90,            // regulation minutes
   ET_MINUTES: 30,         // extra time total (15 + 15)
   ET_LAMBDA_SCALE: 30 / 90, // expected-goals scaling for the shorter ET period
@@ -129,7 +129,7 @@ window.CONFIG = {
      difficulty ramps up to the final. OPP_STRENGTH_BIAS sharpens the seeded
      weighting toward that target (0 = uniform draw). Keys: 'grupos' + ROUND ids. */
   PHASE_STRENGTH: { grupos: 0.12, oitavas: 0.34, quartas: 0.56, semi: 0.78, final: 1.0 },
-  OPP_STRENGTH_BIAS: 5,
+  OPP_STRENGTH_BIAS: 7,   // mais alto = seleções mais fortes/conhecidas dominam as fases finais
 
   /* ---------- Draft draw bias ----------
      Stronger selections (by squad average) are more likely to come up on the
