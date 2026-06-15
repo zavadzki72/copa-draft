@@ -255,9 +255,22 @@ public sealed class TournamentOrchestrator(
         {
             MpFatigue.UpdateAfterMatch(FatigueOf(homeId), SideOf(homeId), cfg);
             MpFatigue.UpdateAfterMatch(FatigueOf(awayId), SideOf(awayId), cfg);
+            RestOut(homeId); RestOut(awayId);   // quem ficou fora (suspenso/lesão) descansa (como no solo)
             MpStatus.AdvanceAfterMatch(StatusOf(homeId), log, "home", cfg);
             MpStatus.AdvanceAfterMatch(StatusOf(awayId), log, "away", cfg);
             MpStats.Accumulate(rt.Tally, log, cfg);   // prêmios de fim de copa
+        }
+        // zera o cansaço de quem ficou de fora (não entrou na side efetiva, então
+        // o MpFatigue não os tocou). Antes do AdvanceAfterMatch: descanso vale para
+        // o status DESTA rodada (espelha o solo, onde o reserva fora descansa).
+        void RestOut(string teamId)
+        {
+            Dictionary<string, PlayerStatusEntry> st = StatusOf(teamId);
+            if (st.Count == 0) return;
+            Dictionary<string, double> fat = FatigueOf(teamId);
+            SideInput side = t.Teams[teamId].Side;
+            foreach (EnginePlayer p in side.Starters.Concat(side.Bench))
+                if (MpStatus.IsOut(st, p.Id)) fat[p.Id] = 0;
         }
 
         // ---------- group stage: 3 rounds ----------

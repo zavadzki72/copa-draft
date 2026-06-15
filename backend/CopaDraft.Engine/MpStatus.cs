@@ -83,12 +83,13 @@ public static class MpStatus
         };
     }
 
-    /// <summary>Lista (nome+motivo) dos titulares indisponíveis de uma side —
-    /// para o pré-jogo mostrar quem ficou de fora.</summary>
+    /// <summary>Lista (nome+motivo) dos jogadores indisponíveis de uma side —
+    /// para o pré-jogo mostrar quem ficou de fora. Inclui o banco (um reserva que
+    /// entrou em campo e se lesionou também aparece).</summary>
     public static List<OutPlayerDto> OutStarters(SideInput side, IReadOnlyDictionary<string, PlayerStatusEntry> status)
     {
         var outs = new List<OutPlayerDto>();
-        foreach (EnginePlayer p in side.Starters)
+        foreach (EnginePlayer p in side.Starters.Concat(side.Bench))
         {
             if (!status.TryGetValue(p.Id, out PlayerStatusEntry? s)) continue;
             if (s.Suspended > 0) outs.Add(new OutPlayerDto(p.Id, p.Name, p.Pos, "suspended", s.Suspended));

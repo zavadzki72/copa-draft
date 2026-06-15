@@ -67,9 +67,10 @@ public static class MpStats
     public static CampaignAwardsDto Awards(IReadOnlyDictionary<string, PlayerTally> tally, GameConfig c)
     {
         List<PlayerTally> ps = tally.Values.ToList();
-        static double Avg(PlayerTally p) => p.Matches > 0 ? p.RatingSum / p.Matches : 0;
+        // média arredondada a 1 casa ANTES de ordenar — paridade com stats.js do solo
+        static double Avg(PlayerTally p) => p.Matches > 0 ? Math.Round(p.RatingSum / p.Matches, 1) : 0;
         AwardDto Map(PlayerTally p) => new(p.Id, p.Name, p.Pos, p.Goals, p.Assists, p.Saves,
-            p.CleanSheets, Math.Round(Avg(p), 1), p.Matches);
+            p.CleanSheets, Avg(p), p.Matches);
 
         PlayerTally? top = ps.Where(p => p.Goals > 0)
             .OrderByDescending(p => p.Goals).ThenByDescending(p => p.Assists).ThenBy(p => p.Matches).FirstOrDefault();
