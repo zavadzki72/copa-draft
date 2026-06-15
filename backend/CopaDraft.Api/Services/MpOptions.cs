@@ -15,8 +15,12 @@ public sealed class MpOptions
     /// <summary>Maximum players per room (8 ⇒ up to 8 groups bracket).</summary>
     public int MaxPlayers { get; set; } = 8;
 
-    /// <summary>Draft time limit; expired/absent players get autofilled.</summary>
+    /// <summary>Draft time limit padrão; expired/absent players get autofilled.
+    /// O valor efetivo vem de Room.DraftSeconds (escolhido no lobby).</summary>
     public int DraftTimerSeconds { get; set; } = 180;
+
+    /// <summary>Tempos de draft selecionáveis no lobby (segundos).</summary>
+    public HashSet<int> DraftTimeOptions { get; set; } = new() { 60, 180, 300 };
 
     /// <summary>Canonical ticker pace for MP matches (ms per simulated minute).
     /// Fallback — o valor efetivo vem da velocidade escolhida na sala.</summary>

@@ -7,7 +7,8 @@ namespace CopaDraft.Api.Services;
 public sealed record PlayerDto(Guid UserId, string Name, string? Avatar, bool IsHost, bool Ready, string Presence, bool HasTeam);
 public sealed record RoomStateDto(
     string Code, string State, Guid HostUserId, int MaxPlayers,
-    DateTimeOffset? DraftDeadline, string Speed, string Level, string Mode, IReadOnlyList<PlayerDto> Players);
+    DateTimeOffset? DraftDeadline, string Speed, string Level, string Mode, int DraftSeconds,
+    DateTimeOffset ServerNow, IReadOnlyList<PlayerDto> Players);
 
 public class RoomServiceException(string message) : Exception(message);
 
@@ -27,6 +28,7 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             State = RoomState.Waiting, Seed = Random.Shared.Next(),
             MaxPlayers = Mp.MaxPlayers, CreatedAt = DateTimeOffset.UtcNow,
             Speed = Mp.DefaultSpeed, Level = Mp.DefaultLevel, Mode = Mp.DefaultMode,
+            DraftSeconds = Mp.DraftTimerSeconds,
         };
         db.Rooms.Add(room);
         db.Participants.Add(new Participant
@@ -120,7 +122,8 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             throw new RoomServiceException($"Mínimo de {Mp.MinPlayers} jogadores para iniciar.");
 
         room.State = RoomState.Draft;
-        room.DraftDeadline = DateTimeOffset.UtcNow.AddSeconds(Mp.DraftTimerSeconds);
+        int secs = room.DraftSeconds > 0 ? room.DraftSeconds : Mp.DraftTimerSeconds;
+        room.DraftDeadline = DateTimeOffset.UtcNow.AddSeconds(secs);
         await db.SaveChangesAsync(ct);
         return await GetStateAsync(code, ct);
     }
@@ -167,6 +170,21 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
         if (!Mp.Modes.Contains(mode))
             throw new RoomServiceException("Modo inválido.");
         room.Mode = mode;
+        await db.SaveChangesAsync(ct);
+        return await GetStateAsync(code, ct);
+    }
+
+    /// <summary>Tempo do draft da sala em segundos (anfitrião, ainda no lobby).</summary>
+    public async Task<RoomStateDto> SetDraftTimeAsync(string code, Guid userId, int seconds, CancellationToken ct = default)
+    {
+        Room room = await RequireRoomAsync(code, ct);
+        if (room.HostUserId != userId)
+            throw new RoomServiceException("Só o anfitrião pode mudar o tempo do draft.");
+        if (room.State != RoomState.Waiting)
+            throw new RoomServiceException("O tempo do draft só pode mudar no lobby.");
+        if (!Mp.DraftTimeOptions.Contains(seconds))
+            throw new RoomServiceException("Tempo de draft inválido.");
+        room.DraftSeconds = seconds;
         await db.SaveChangesAsync(ct);
         return await GetStateAsync(code, ct);
     }
@@ -219,7 +237,8 @@ public sealed class RoomService(AppDbContext db, IOptions<MpOptions> mp)
             p.IsHost, p.Ready, PresenceName(p.Presence), p.Team is not null)).ToList();
 
         return new RoomStateDto(room.Code, StateName(room.State), room.HostUserId,
-            room.MaxPlayers, room.DraftDeadline, room.Speed, room.Level, room.Mode, players);
+            room.MaxPlayers, room.DraftDeadline, room.Speed, room.Level, room.Mode, room.DraftSeconds,
+            DateTimeOffset.UtcNow, players);
     }
 
     public static string StateName(RoomState s) => s switch

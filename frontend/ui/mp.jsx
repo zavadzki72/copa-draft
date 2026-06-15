@@ -12,6 +12,13 @@
 const mpTeamInfo = (snap, teamId) => window.MPLOG.teamInfo(snap, teamId);
 const t = (k, v) => window.I18N.t(k, v);
 
+// desvio (ms) entre o relógio do SERVIDOR e o do cliente, medido no último
+// RoomState (state.serverNow). Os prazos vêm em tempo do servidor, então sem
+// isso o contador fica errado em máquinas com relógio dessincronizado — só
+// acertava por acaso pra quem tinha o relógio igual ao do servidor.
+let mpClockOffset = 0;
+const mpServerNow = () => Date.now() + mpClockOffset;
+
 // rótulo de rodada traduzido: mata-mata resolve pelo dicionário de rounds
 // (o label do servidor É o id: 'oitavas'…); fase de grupos extrai o número
 // do label PT do servidor ("Rodada N")
@@ -86,7 +93,9 @@ function MpMark({ snap, id }) {
 function MpTimer({ deadline }) {
   const [left, setLeft] = useState(0);
   useEffect(() => {
-    const tick = () => setLeft(Math.max(0, Math.round((new Date(deadline) - Date.now()) / 1000)));
+    // compara o prazo (tempo do servidor) com o "agora" do servidor estimado,
+    // não com o relógio local cru — corrige desvio de relógio entre jogadores
+    const tick = () => setLeft(Math.max(0, Math.round((new Date(deadline) - mpServerNow()) / 1000)));
     tick();
     const iv = setInterval(tick, 500);
     return () => clearInterval(iv);
@@ -225,7 +234,7 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   );
 }
 
-function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel, onMode }) {
+function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel, onMode, onDraftTime }) {
   const me = room.players.find(p => p.userId === meId);
   const isHost = room.hostUserId === meId;
   const readyCount = room.players.filter(p => p.ready).length;
@@ -301,6 +310,23 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLeve
           </p>
         )}
         <p className="p mp-hint">{t('mp.lobby.modeHint')}</p>
+      </div>
+
+      <div className="setcard mp-speed">
+        <span className="lab">{t('mp.lobby.draftTimeLab')}</span>
+        {isHost ? (
+          <Segmented value={room.draftSeconds || 180} onChange={onDraftTime} options={[
+            { id: 60, label: t('mp.lobby.draftTime1') },
+            { id: 180, label: t('mp.lobby.draftTime3') },
+            { id: 300, label: t('mp.lobby.draftTime5') },
+          ]} />
+        ) : (
+          <p className="p mp-speed-view">
+            {t('mp.lobby.' + ({ 60: 'draftTime1', 180: 'draftTime3', 300: 'draftTime5' }[room.draftSeconds] || 'draftTime3'))}
+            <span className="mp-hint">{t('mp.lobby.byHost')}</span>
+          </p>
+        )}
+        <p className="p mp-hint">{t('mp.lobby.draftTimeHint')}</p>
       </div>
 
       <div className="mp-players">
@@ -589,6 +615,8 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   useEffect(() => {
     const offs = [
       window.MPRT.on('RoomState', (state) => {
+        // ancora os timers no relógio do servidor (corrige desvio entre clientes)
+        if (state && state.serverNow) mpClockOffset = Date.parse(state.serverNow) - Date.now();
         roomRef.current = state; // síncrono: enterRoom lê logo após o JoinRoom resolver
         setRoom(state);
         if (state.state === 'draft' && ['lobby'].includes(stageRef.current)) setStage('draft');
@@ -727,6 +755,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       onSpeed={(v) => window.MPRT.invoke('SetRoomSpeed', room.code, v).catch(() => {})}
       onLevel={(v) => window.MPRT.invoke('SetRoomLevel', room.code, v).catch(() => {})}
       onMode={(v) => window.MPRT.invoke('SetRoomMode', room.code, v).catch(() => {})}
+      onDraftTime={(v) => window.MPRT.invoke('SetRoomDraftTime', room.code, v).catch(() => {})}
       onLeave={leaveAll} />;
 
   if (stage === 'draft') {

@@ -171,6 +171,21 @@ public class LobbyHub(
         }
     }
 
+    /// <summary>Tempo do draft da sala em segundos (anfitrião, no lobby).</summary>
+    public async Task SetRoomDraftTime(string code, int seconds)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.SetDraftTimeAsync(code, UserId, seconds);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
     /// <summary>"Terminei de assistir" — quando todos os humanos da rodada
     /// terminam/pulam, o servidor resolve o resto da rodada na hora.</summary>
     public Task DoneWatching(string code)

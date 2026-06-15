@@ -38,6 +38,9 @@ public class Room
     /// <summary>Modo do draft escolhido no lobby (classico|medium|almanaque):
     /// só afeta a experiência do draft no cliente; o servidor apenas o propaga.</summary>
     public string Mode { get; set; } = "classico";
+    /// <summary>Tempo do draft em segundos, escolhido no lobby (prazo p/ montar
+    /// o time; expirado/ausente é autocompletado).</summary>
+    public int DraftSeconds { get; set; } = 180;
 
     public List<Participant> Participants { get; set; } = new();
 }

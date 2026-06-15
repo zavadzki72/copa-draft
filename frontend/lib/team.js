@@ -69,9 +69,24 @@
     }
     return -1;
   }
+  // TITULARES: só o XI titular de cada seleção entra no draft. Sem dados de
+  // escalação histórica, o proxy é o melhor jogador por posição num 4-3-3
+  // (1 GOL, 2 ZAG, 2 LAT, 3 MEI, 3 ATA) — mesmo modelo que monta os times de IA.
+  // Memoizado por seleção (window.SQUADS é estático).
+  const _starterCache = new Map();
+  function squadStarterPool(squad) {
+    if (_starterCache.has(squad.id)) return _starterCache.get(squad.id);
+    const need = window.CONFIG.FORMATIONS['4-3-3'];
+    const g = byGroup(squad.players);            // já ordenado por overall desc por posição
+    const pool = [];
+    Object.keys(need).forEach(pos => pool.push(...g[pos].slice(0, need[pos])));
+    _starterCache.set(squad.id, pool);
+    return pool;
+  }
+
   // NEW DRAFT: a whole selection is drawn, then the player chooses which of its
-  // players to take. A player is PICKABLE when it isn't taken yet AND its
-  // position still has an open slot. Returns every squad player (with attrs)
+  // TITULARES (XI) to take. A player is PICKABLE when it isn't taken yet AND its
+  // position still has an open slot. Returns the starter players (with attrs)
   // annotated { ...player, pickable, slotIdx }, sorted by position then overall
   // so the strongest available names surface first.
   const POS_ORDER = { GOL: 0, ZAG: 1, LAT: 2, MEI: 3, ATA: 4 };
@@ -79,7 +94,7 @@
   // rating está oculto (almanaque, ou medium antes do peek) ordenamos por NOME
   // para NÃO vazar a força — senão o craque viria sempre no topo da posição.
   function squadPickables(squad, slots, fills, takenIds, byStrength = true) {
-    return squad.players
+    return squadStarterPool(squad)
       .map(p => {
         const slotIdx = takenIds.has(p.id) ? -1 : openSlotFor(slots, fills, p.pos);
         return { ...withAttrs(p), pickable: slotIdx >= 0, slotIdx };
@@ -89,9 +104,9 @@
         ((POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9)) ||
         (byStrength ? (b.overall - a.overall) : a.name.localeCompare(b.name, 'pt')));
   }
-  // does a squad still have at least one pickable player for the current board?
+  // does a squad still have at least one pickable STARTER for the current board?
   function squadHasPickable(squad, slots, fills, takenIds) {
-    return squad.players.some(p => !takenIds.has(p.id) && openSlotFor(slots, fills, p.pos) >= 0);
+    return squadStarterPool(squad).some(p => !takenIds.has(p.id) && openSlotFor(slots, fills, p.pos) >= 0);
   }
 
   // pitch layout rows (back -> front)
@@ -377,7 +392,7 @@
   window.TEAM = {
     withAttrs, squadAvg, byGroup, bestXI,
     draftSlots, slotLabel, eligible,
-    slotAccepts, openSlotFor, squadPickables, squadHasPickable,
+    slotAccepts, openSlotFor, squadStarterPool, squadPickables, squadHasPickable,
     squadDrawWeight,
     squadStrengthT, phaseTarget, phaseWeight, drawScaledOpponents,
     roundRobin, buildGroup, groupStandings,
