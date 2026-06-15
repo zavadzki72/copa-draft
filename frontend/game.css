@@ -754,6 +754,10 @@
 .mp-award-ic { font-size: 1.8rem; line-height: 1; }
 .mp-award-name { font-weight: 700; color: var(--fg1); margin-top: 2px; }
 .mp-award-stat { font-family: var(--font-mono); font-size: 12px; color: var(--fg3); }
+.mp-ach-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.mp-ach { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--hairline); }
+.mp-ach-ic { font-size: 1.1rem; }
+.mp-ach-name { font-weight: 600; font-size: .9rem; color: var(--fg1); }
 
 /* ver times enviados (modal do draft) */
 .mp-team-card { border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); padding-bottom: 10px; }

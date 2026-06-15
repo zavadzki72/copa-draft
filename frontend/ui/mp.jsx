@@ -19,6 +19,21 @@ const t = (k, v) => window.I18N.t(k, v);
 let mpClockOffset = 0;
 const mpServerNow = () => Date.now() + mpClockOffset;
 
+// conquistas (achievements) do humano a partir do SEU jogo (log já com home = eu).
+// Reaproveita o catálogo/avaliador do solo (window.ACHIEVEMENTS).
+function mpMatchAchievements(log) {
+  const me = log.home, opp = log.away, sc = log.score;
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, p) => a + (p.overall || 75), 0) / arr.length) : 75;
+  const starters = me.starters.map(s => window.MPLOG.playerById(s.id) || { age: 27, overall: 75 });
+  const oppPl = opp.starters.map(s => window.MPLOG.playerById(s.id) || { overall: 75 });
+  return window.ACHIEVEMENTS.matchAchievements({
+    won: log.result === 'home', score: { home: sc.home, away: sc.away }, conceded: sc.away,
+    penalties: log.penalties, extraTime: log.extraTime,
+    homePlayers: me.starters.map(s => log.stats[s.id] || { goals: 0 }),
+    starters, playerAvg: avg(starters), oppAvg: avg(oppPl),
+  });
+}
+
 // rótulo de rodada traduzido: mata-mata resolve pelo dicionário de rounds
 // (o label do servidor É o id: 'oitavas'…); fase de grupos extrai o número
 // do label PT do servidor ("Rodada N")
@@ -536,10 +551,15 @@ function MpTournament({ snap, meId, minute, yourMatch, onWatch, readyProgress, f
   );
 }
 
-function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
+function MpEnd({ snap, meId, isHost, achUnlocked, achHistory, mode, onExit, onBackToTables, onPlayAgain }) {
   const myTeamId = 'h:' + meId;
   const champion = snap.championTeamId;
   const iAmChampion = champion === myTeamId;
+  // conquistas: das partidas (achUnlocked) + as de campanha (campeão/invicto/almanaque)
+  const campaignIds = window.ACHIEVEMENTS.campaignAchievements({
+    champion: iAmChampion, history: achHistory || [], mode });
+  const achIds = [...new Set([...(achUnlocked || []), ...campaignIds])];
+  const achList = window.ACHIEVEMENTS.LIST.filter(a => achIds.includes(a.id));
 
   // medalha/feedback coerente com até onde EU cheguei (não 🥈 genérico)
   const elim = window.MPLOG.eliminationInfo(snap, myTeamId);
@@ -588,6 +608,20 @@ function MpEnd({ snap, meId, isHost, onExit, onBackToTables, onPlayAgain }) {
         );
       })()}
 
+      {achList.length > 0 && (
+        <div className="mp-awards">
+          <div className="shead" style={{ margin: '6px 0 8px' }}><span className="tok">{t('mp.end.achTok')}</span></div>
+          <div className="mp-ach-grid">
+            {achList.map(a => (
+              <div className="mp-ach" key={a.id} title={a.desc}>
+                <span className="mp-ach-ic">{a.icon}</span>
+                <span className="mp-ach-name">{a.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mp-foot">
         <button className="btn btn-ghost" onClick={onBackToTables}>{t('mp.end.seeCampaign')}</button>
         {isHost
@@ -621,6 +655,8 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   const [postMatch, setPostMatch] = useState(null);  // {log, ratings} — pós-jogo (reuso do solo)
   const [draftTeams, setDraftTeams] = useState(null); // times já enviados (ver os outros)
   const [showTeams, setShowTeams] = useState(false);  // modal "ver times enviados" aberto
+  const [achUnlocked, setAchUnlocked] = useState([]); // conquistas do humano (das partidas)
+  const [achHistory, setAchHistory] = useState([]);   // {won,extraTime,penalties} por jogo
   const meId = session ? session.user.id : null;
 
   const stageRef = useRef(stage);
@@ -686,6 +722,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           setPostMatch(null); setWatching(false); setReadyProgress(null);
           setClickedRound(null); setAdvancedRound(null); setFormationChosen(false); setDeadline(null); setProgress(null);
           setDraftTeams(null); setShowTeams(false);
+          setAchUnlocked([]); setAchHistory([]);
           setMinute(0);
           announcedRoundRef.current = null;
           openedRoundRef.current = null;
@@ -965,6 +1002,10 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           window.MPRT.invoke('DoneWatching', room.code).catch(() => {});
           setWatching(false);
           setPostMatch({ log, round, ratings: window.RATINGS.computeRatings(log, window.CONFIG) });
+          // conquistas: acumula as do meu jogo (catálogo do solo)
+          const ids = mpMatchAchievements(log);
+          if (ids.length) setAchUnlocked(prev => [...new Set([...prev, ...ids])]);
+          setAchHistory(prev => [...prev, { won: log.result === 'home', extraTime: log.extraTime, penalties: !!log.penalties }]);
         }}
         onShootout={null} onPenalty={null} pendingPen={null} />
     );
@@ -1010,6 +1051,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
 
   if (stage === 'end' && snap)
     return <MpEnd snap={snap} meId={meId} isHost={room && room.hostUserId === meId}
+      achUnlocked={achUnlocked} achHistory={achHistory} mode={room && room.mode}
       onExit={leaveAll}
       onBackToTables={() => setStage('tournament')}
       onPlayAgain={() => window.MPRT.invoke('PlayAgain', room.code).catch(() => {})} />;
