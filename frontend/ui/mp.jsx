@@ -49,6 +49,124 @@ const mpPhaseLabel = (ph) =>
   ({ grupos: t('mp.phase.grupos'), 'mata-mata': t('mp.phase.mataMata'), encerrada: t('mp.phase.encerrada') }[ph]
     || String(ph || '').toUpperCase());
 
+/* Overlay da disputa de PÊNALTIS interativa (server-authoritative). É dirigido
+   inteiramente pelos eventos do servidor (ShootoutState/AwaitKick): quando é a
+   MINHA cobrança mostra os 3 cantos; senão acompanho o placar/animação. Reaproveita
+   o visual .pk-* do solo (ui/penalty.jsx) mas SEM lógica de jogo no cliente. */
+function MpShootout({ st, aw, meId, sfx, onKick }) {
+  const beep = sfx || (() => {});
+  const ZONES = window.CONFIG.PK_ZONES;
+  const zoneCenter = { esq: 22, meio: 50, dir: 78 };
+  const zoneLabel = (z) => z === 'esq' ? t('ui.penalty.zoneLeft') : z === 'meio' ? t('ui.penalty.zoneMid') : t('ui.penalty.zoneRight');
+  const lc = (x) => x == null ? null : String(x).toLowerCase();
+  const me = lc(meId);
+
+  const awaiting = aw && lc(aw.tieId) === lc(st.tieId);
+  const myTurn = awaiting && lc(aw.awaitingUserId) === me;
+  const last = st.lastKick;
+  const showShot = !!last && !myTurn;   // ao cobrar, mostro o gol limpo pra mirar
+
+  const [secs, setSecs] = useState(null);
+  useEffect(() => {
+    if (!myTurn || !aw || !aw.deadline) { setSecs(null); return; }
+    const tick = () => setSecs(Math.max(0, Math.ceil((new Date(aw.deadline).getTime() - mpServerNow()) / 1000)));
+    tick();
+    const iv = setInterval(tick, 250);
+    return () => clearInterval(iv);
+  }, [myTurn, aw && aw.deadline, aw && aw.kickIndex]); // eslint-disable-line
+
+  const beepKey = last ? `${last.side}-${last.index}` : null;
+  const seen = useRef(null);
+  useEffect(() => {
+    if (beepKey && beepKey !== seen.current) {
+      seen.current = beepKey;
+      beep(last.outcome === 'goal' ? (last.side === 'home' ? 'goal' : 'goalAway') : last.outcome === 'save' ? 'save' : 'miss');
+    }
+  }, [beepKey]); // eslint-disable-line
+
+  const ballStyle = () => showShot ? { left: zoneCenter[last.zone] + '%', top: '34%', transform: 'translate(-50%,-50%) scale(.7)' } : {};
+  const gkStyle = () => {
+    const z = showShot ? last.gkZone : 'meio';
+    const rot = z === 'esq' ? -38 : z === 'dir' ? 38 : 0;
+    return { left: zoneCenter[z] + '%', transform: `translateX(-50%) rotate(${rot}deg)` };
+  };
+
+  const Dots = ({ list }) => (
+    <div className="pk-dots">
+      {Array.from({ length: Math.max(st.rounds, list.length) }).map((_, i) =>
+        <span key={i} className={`pk-dot ${list[i] || 'pending'}`}></span>)}
+    </div>
+  );
+
+  const oppTeam = awaiting ? (aw.side === 'home' ? st.homeName : st.awayName) : '';
+  const takerName = aw && aw.takerName ? aw.takerName : t('ui.penalty.imKickFallback');
+  const prompt = st.decided ? null
+    : myTurn ? t('mp.shootout.yourKick', { name: takerName })
+      : awaiting ? t('mp.shootout.oppKick', { name: takerName, team: oppTeam })
+        : t('mp.shootout.watching');
+
+  const winnerName = st.decided ? (st.winnerId === st.homeId ? st.homeName : st.awayName) : null;
+  const iWon = st.decided && ((st.winnerId === st.homeId && lc(st.homeUserId) === me)
+    || (st.winnerId === st.awayId && lc(st.awayUserId) === me));
+  const flash = last && (last.outcome === 'goal' ? t('ui.penalty.goal') : last.outcome === 'save' ? t('ui.penalty.save') : t('ui.penalty.miss'));
+
+  return (
+    <div className="howto-overlay" role="dialog" aria-modal="true" aria-label="Pênaltis">
+      <div className="howto-panel" style={{ maxWidth: 620 }}>
+        <div className="shead" style={{ marginBottom: 8 }}>
+          <div><span className="tok">{t('ui.penalty.tok')}</span><h2 style={{ marginTop: 4 }}>{t('ui.penalty.title')}</h2></div>
+          <span className="meta">{st.sudden ? t('ui.penalty.sudden') : t('ui.penalty.bestOf', { n: st.rounds })}</span>
+        </div>
+
+        <div className="pk-board">
+          <div className="pk-team">
+            <div className="pk-name">{st.homeName}</div>
+            <Dots list={st.dotsHome} />
+          </div>
+          <div className="pk-score">{st.scoreHome}<span>–</span>{st.scoreAway}</div>
+          <div className="pk-team away">
+            <div className="pk-name">{st.awayName}</div>
+            <Dots list={st.dotsAway} />
+          </div>
+        </div>
+
+        <div className={`pk-stage ${showShot ? 'shot-' + last.outcome : ''}`}>
+          <div className="pk-goal">
+            <div className="pk-net"></div>
+            <div className="pk-post left"></div>
+            <div className="pk-post right"></div>
+            <div className="pk-bar"></div>
+            <div className={`pk-keeper ${showShot ? 'dive' : ''}`} style={gkStyle()}><span className="pk-gk-body"></span></div>
+            <div className={`pk-ball ${showShot ? 'fly' : ''}`} style={ballStyle()}></div>
+            {myTurn && (
+              <div className="pk-targets">
+                {ZONES.map(z => (
+                  <button key={z} className="pk-target" onClick={() => onKick(z)} aria-label={zoneLabel(z)}>
+                    <span className="pk-target-ic">🎯</span>
+                    <span className="pk-target-lb">{zoneLabel(z)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showShot && <div className={`pk-flash ${last.outcome}`}>{flash}</div>}
+          </div>
+          <div className="pk-grass"></div>
+        </div>
+
+        <div className="pk-prompt">
+          {st.decided
+            ? <span className={`pk-result ${iWon ? 'win' : 'loss'}`}>
+                {iWon ? t('mp.shootout.win', { team: winnerName }) : t('mp.shootout.lose', { team: winnerName })}
+              </span>
+            : <span className={myTurn ? 'you-kick' : 'you-save'}>
+                {prompt}{myTurn && secs != null ? ` · ${t('mp.shootout.clock', { s: secs })}` : ''}
+              </span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* um grupo (tabela + calendário) — usado na tela principal (só o MEU grupo)
    e no modal "todos os grupos" (#6) */
 function MpGroupBlock({ snap, g, myTeamId }) {
@@ -657,6 +775,8 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   const [showTeams, setShowTeams] = useState(false);  // modal "ver times enviados" aberto
   const [achUnlocked, setAchUnlocked] = useState([]); // conquistas do humano (das partidas)
   const [achHistory, setAchHistory] = useState([]);   // {won,extraTime,penalties} por jogo
+  const [shootout, setShootout] = useState(null);      // estado da disputa de pênaltis (servidor)
+  const [shootoutAwait, setShootoutAwait] = useState(null); // cobrança aguardando meu canto
   const meId = session ? session.user.id : null;
 
   const stageRef = useRef(stage);
@@ -665,6 +785,10 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
   useEffect(() => { if (onStage) onStage(stage); }, [stage]); // eslint-disable-line
   const yourMatchRef = useRef(null);
   yourMatchRef.current = yourMatch;
+  const followRef = useRef(null);
+  followRef.current = follow;
+  const shootoutRef = useRef(null);
+  shootoutRef.current = shootout;
   const lastRoundRef = useRef(null);                 // info da rodada corrente p/ rótulos
   const busyWatchingRef = useRef(false);             // assistindo/pós-jogo: não puxar pra tela final
   const announcedRoundRef = useRef(null);            // rodada cujo pré-jogo já processei
@@ -748,6 +872,40 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       window.MPRT.on('RoundStarted', () => setMinute(0)),
       window.MPRT.on('MinuteTick', setMinute),
       window.MPRT.on('TournamentFinished', () => { /* snapshot 'encerrada' cuida da UI */ }),
+      // ---- disputa de pênaltis interativa (server-authoritative) ----
+      // ShootoutStarted só anuncia; o ShootoutState seguinte abre o overlay.
+      window.MPRT.on('ShootoutStarted', () => {}),
+      window.MPRT.on('ShootoutState', (s) => {
+        const lc = x => x == null ? null : String(x).toLowerCase();
+        const f = followRef.current;
+        const mine = lc(s.homeUserId) === lc(meId) || lc(s.awayUserId) === lc(meId)
+          || (f && (s.homeId === f || s.awayId === f));
+        if (!mine) return;
+        busyWatchingRef.current = true;       // não pular pra tela final durante a disputa
+        setShootout(s);
+        if (!s.awaitingUserId) setShootoutAwait(null);   // início ou cobrança resolvida
+      }),
+      window.MPRT.on('ShootoutAwaitKick', (a) => {
+        // minha vez é identificada pelo awaitingUserId (sem depender do estado já
+        // ter aberto o overlay — evita corrida com o ShootoutState anterior); para
+        // espectadores, casa pela tie acompanhada.
+        const cur = shootoutRef.current;
+        const mine = String(a.awaitingUserId).toLowerCase() === String(meId).toLowerCase();
+        if (mine || (cur && String(cur.tieId).toLowerCase() === String(a.tieId).toLowerCase()))
+          setShootoutAwait(a);
+      }),
+      window.MPRT.on('ShootoutFinished', (ev) => {
+        const pens = { home: ev.pensHome, away: ev.pensAway };
+        // aplica o resultado da disputa no MEU log (e no de quem acompanho) p/ o pós-jogo
+        setYourMatch(prev => prev && prev.fixtureId === ev.tieId
+          ? { ...prev, log: window.ENGINE.finalizeShootout(prev.log, pens) } : prev);
+        setSpectMatch(prev => prev && prev.fixtureId === ev.tieId
+          ? { ...prev, log: window.ENGINE.finalizeShootout(prev.log, pens) } : prev);
+        setShootoutAwait(null);
+        // mantém o resultado visível um instante, depois fecha o overlay
+        setTimeout(() => setShootout(prev =>
+          prev && String(prev.tieId).toLowerCase() === String(ev.tieId).toLowerCase() ? null : prev), 2400);
+      }),
       window.MPRT.on('LobbyError', (msg) => setError(msg)),
     ];
     window.MPRT.onReconnected(() => {
@@ -985,6 +1143,16 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
           setPostMatch(null);
           if (snap && snap.phase === 'encerrada') setStage('end');
         }} />
+    );
+  }
+
+  // disputa de pênaltis interativa: o overlay dirigido pelo servidor tem
+  // prioridade sobre o ticker/espectador (é a decisão da fase acontecendo)
+  if (stage === 'tournament' && shootout) {
+    busyWatchingRef.current = true;
+    return (
+      <MpShootout st={shootout} aw={shootoutAwait} meId={meId} sfx={sfx}
+        onKick={(z) => window.MPRT.invoke('ShootoutKick', room.code, shootout.tieId, z).catch(() => {})} />
     );
   }
 

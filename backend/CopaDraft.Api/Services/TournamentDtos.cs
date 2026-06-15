@@ -45,6 +45,18 @@ public sealed record RoundInfoDto(
 
 public sealed record FixtureRefDto(string FixtureId, string HomeId, string AwayId, int LastMinute);
 
+/// <summary>Estado de uma disputa de pênaltis interativa, transmitido à sala
+/// (fonte única da verdade do overlay — o cliente deriva a UI daqui). Contém o
+/// suficiente para abrir o overlay mesmo num resync (nomes/ids/usuários).</summary>
+public sealed record ShootoutStateDto(
+    string TieId, string HomeId, string AwayId, string HomeName, string AwayName,
+    Guid? HomeUserId, Guid? AwayUserId, int Rounds,
+    int ScoreHome, int ScoreAway,
+    IReadOnlyList<string> DotsHome, IReadOnlyList<string> DotsAway,
+    bool Sudden, bool Decided, string? WinnerId,
+    string? AwaitingSide, Guid? AwaitingUserId, DateTimeOffset? Deadline,
+    ShootoutKick? LastKick);
+
 /// <summary>Private payload: the full log of YOUR match for the ticker —
 /// inclui seus reservas (o log só carrega titulares).</summary>
 public sealed record YourMatchDto(

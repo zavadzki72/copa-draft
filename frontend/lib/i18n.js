@@ -246,6 +246,12 @@
         pre: { tok: 'PRÉ-JOGO', readyTitle: 'Pronto! ✓',
           outTitle: 'Fora desta rodada:', outSuspended: 'suspenso', outInjured: 'lesão · {n} fase(s)',
           outSub: 'Um reserva entrou no lugar.' },
+        shootout: {
+          yourKick: 'Sua cobrança: {name} — escolha o canto',
+          oppKick: '{name} ({team}) vai bater…', wait: 'Aguardando {name}…',
+          watching: 'Disputa de pênaltis', clock: 'Escolha em {s}s',
+          win: '✦ {team} venceu nos pênaltis! ✦', lose: '{team} venceu nos pênaltis.',
+        },
         end: {
           tok: 'TORNEIO ENCERRADO', champTitle: 'CAMPEÃO DA SALA!', viceTitle: 'Vice-campeão!',
           fellGroups: 'Você caiu na fase de grupos', fellAt: 'Você caiu em {round}',
@@ -672,6 +678,12 @@
           startsWhenDone: 'The tournament starts as soon as everyone finishes (or time runs out).',
           seeTeams: '👀 See submitted teams', teamsTitle: 'Submitted teams', teamsEyebrow: 'draft',
           teamsNone: 'Nobody has finished the draft yet.', teamAuto: 'auto', teamYou: 'you',
+        },
+        shootout: {
+          yourKick: 'Your kick: {name} — pick your corner',
+          oppKick: '{name} ({team}) steps up…', wait: 'Waiting for {name}…',
+          watching: 'Penalty shootout', clock: 'Pick in {s}s',
+          win: '✦ {team} won the shootout! ✦', lose: '{team} won the shootout.',
         },
         pre: { tok: 'PRE-MATCH', readyTitle: 'Ready! ✓',
           outTitle: 'Out this round:', outSuspended: 'suspended', outInjured: 'injured · {n} phase(s)',
@@ -1102,6 +1114,12 @@
           startsWhenDone: 'El torneo empieza en cuanto todos terminen (o se acabe el tiempo).',
           seeTeams: '👀 Ver equipos enviados', teamsTitle: 'Equipos enviados', teamsEyebrow: 'draft',
           teamsNone: 'Nadie terminó el draft todavía.', teamAuto: 'automático', teamYou: 'tú',
+        },
+        shootout: {
+          yourKick: 'Tu lanzamiento: {name} — elige el ángulo',
+          oppKick: '{name} ({team}) va a lanzar…', wait: 'Esperando a {name}…',
+          watching: 'Definición por penales', clock: 'Elige en {s}s',
+          win: '✦ ¡{team} ganó en los penales! ✦', lose: '{team} ganó en los penales.',
         },
         pre: { tok: 'PREVIO', readyTitle: '¡Listo! ✓',
           outTitle: 'Fuera de esta ronda:', outSuspended: 'suspendido', outInjured: 'lesión · {n} fase(s)',

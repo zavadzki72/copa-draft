@@ -30,8 +30,15 @@ public sealed class TournamentOrchestrator(
     public const string MinuteTickEvent = "MinuteTick";
     public const string MatchFinishedEvent = "MatchFinished";
     public const string TournamentFinishedEvent = "TournamentFinished";
+    public const string ShootoutStartedEvent = "ShootoutStarted";
+    public const string ShootoutStateEvent = "ShootoutState";
+    public const string ShootoutAwaitKickEvent = "ShootoutAwaitKick";
+    public const string ShootoutFinishedEvent = "ShootoutFinished";
 
     private readonly ConcurrentDictionary<string, RunningTournament> _running = new();
+
+    /// <summary>Cobrança de pênalti aguardando o canto de um humano.</summary>
+    private sealed record PendingKick(Guid UserId, string Side, int Index, TaskCompletionSource<string> Tcs);
 
     private sealed class RunningTournament
     {
@@ -72,6 +79,12 @@ public sealed class TournamentOrchestrator(
         /// <summary>Sem humanos vivos: simula o resto sem relógio nem gate.</summary>
         public bool FastForward { get; set; }
         public object GateLock { get; } = new();
+
+        /// <summary>Disputas de pênaltis interativas vivas (tieId → último estado
+        /// transmitido) — fonte para o resync ao (re)conectar.</summary>
+        public ConcurrentDictionary<string, ShootoutStateDto> LiveShootouts { get; } = new();
+        /// <summary>Cobranças aguardando o canto de um humano (tieId → pendência).</summary>
+        public ConcurrentDictionary<string, PendingKick> ShootoutPending { get; } = new();
     }
 
     /// <summary>Last fatal error of a room's runner (diagnostics).</summary>
@@ -140,6 +153,22 @@ public sealed class TournamentOrchestrator(
                 rt.RoundSkip.TrySetResult(true);
         }
     }
+
+    /// <summary>Canto escolhido por um humano numa cobrança de pênalti. Só vale
+    /// se for a vez daquele usuário naquela tie. Devolve true se aceito.</summary>
+    public bool SubmitShootoutKick(string code, string tieId, Guid userId, string zone)
+    {
+        if (!ShootoutEngine.IsZone(zone)) return false;
+        if (!_running.TryGetValue(code.ToUpperInvariant(), out RunningTournament? rt)) return false;
+        if (rt.ShootoutPending.TryGetValue(tieId, out PendingKick? p) && p.UserId == userId)
+            return p.Tcs.TrySetResult(zone);
+        return false;
+    }
+
+    /// <summary>Disputas de pênaltis vivas da sala (resync ao (re)conectar).</summary>
+    public IReadOnlyList<ShootoutStateDto> LiveShootouts(string code)
+        => _running.TryGetValue(code.ToUpperInvariant(), out RunningTournament? rt)
+            ? rt.LiveShootouts.Values.ToList() : Array.Empty<ShootoutStateDto>();
 
     /// <summary>Builds and launches the tournament for a room whose draft is
     /// complete. Idempotent — only the first call wins.</summary>
@@ -272,6 +301,16 @@ public sealed class TournamentOrchestrator(
             foreach (EnginePlayer p in side.Starters.Concat(side.Bench))
                 if (MpStatus.IsOut(st, p.Id)) fat[p.Id] = 0;
         }
+        // cobradores da disputa de pênaltis = titulares da side EFETIVA (quem
+        // jogou) ordenados por finalização desc; goleiro = GOL titular (overall).
+        // Mesma base do AutoShootout do motor.
+        List<ShootoutEngine.Taker> ShootoutTakers(string teamId)
+            => SideOf(teamId).Starters
+                .Select(p => new ShootoutEngine.Taker(p.Id, p.Name, Derive.DeriveAttrs(ToPlayer(p), cfg).Shooting))
+                .OrderByDescending(t => t.Shooting)
+                .ToList();
+        double ShootoutGk(string teamId)
+            => SideOf(teamId).Starters.FirstOrDefault(p => p.Pos == "GOL")?.Overall ?? 75;
 
         // ---------- group stage: 3 rounds ----------
         int groupRounds = t.Groups[0].Fixtures.Max(f => f.Round) + 1;
@@ -327,17 +366,42 @@ public sealed class TournamentOrchestrator(
             var logs = new Dictionary<string, MatchLog>();
             foreach (KnockoutTie tie in ties)
             {
+                // ties com time HUMANO vão para a disputa INTERATIVA: o motor
+                // simula só até o fim da prorrogação (log "pending"); as ties só-IA
+                // seguem automáticas (AutoShootout no próprio motor).
+                bool interactive = TieHasHuman(rt, tie);
                 MatchLog log = MatchEngine.SimulateMatch(
                     SideOf(tie.HomeId), SideOf(tie.AwayId), cfg,
                     TournamentGenerator.MatchSeed(t.Seed, tie.TieId),
-                    new EngineOptions { Knockout = true, Fatigue = true, Pressure = true, RoundN = r + 1 });
+                    new EngineOptions
+                    {
+                        Knockout = true, Fatigue = true, Pressure = true, RoundN = r + 1,
+                        InteractiveShootout = interactive,
+                    });
                 logs[tie.TieId] = log;
-                tie.WinnerId = log.Result == "home" ? tie.HomeId : tie.AwayId;
-                rt.TieResults[tie.TieId] = (log.Score, log.Penalties, tie.WinnerId, false);
+                if (log.NeedsShootout)
+                {
+                    // vencedor indefinido até a disputa interativa rodar (pós-relógio)
+                    rt.TieResults[tie.TieId] = (log.Score, null, null, false);
+                }
+                else
+                {
+                    tie.WinnerId = log.Result == "home" ? tie.HomeId : tie.AwayId;
+                    rt.TieResults[tie.TieId] = (log.Score, log.Penalties, tie.WinnerId, false);
+                }
             }
 
             await StartRoundAsync(code, rt, "knockout", roundId,
                 ties.Select(tie => (tie.TieId, tie.HomeId, tie.AwayId, Log: logs[tie.TieId])).ToList(), ct);
+
+            // disputas de pênaltis interativas das ties pendentes (em paralelo:
+            // cada humano cobra a sua sem esperar a disputa alheia)
+            List<KnockoutTie> shootouts = ties.Where(tie => logs[tie.TieId].NeedsShootout).ToList();
+            if (shootouts.Count > 0)
+                await Task.WhenAll(shootouts.Select(tie => ResolveShootoutAsync(
+                    code, rt, tie,
+                    ShootoutTakers(tie.HomeId), ShootoutGk(tie.HomeId),
+                    ShootoutTakers(tie.AwayId), ShootoutGk(tie.AwayId), ct)));
 
             foreach (KnockoutTie tie in ties)
             {
@@ -481,6 +545,183 @@ public sealed class TournamentOrchestrator(
             }
         }, ct, skip.Task);
         lock (rt.GateLock) rt.RoundSkip = null;
+    }
+
+    // ---------- interactive penalty shootout (server-authoritative) ----------
+
+    // Uma tie vai para a disputa INTERATIVA quando envolve um time HUMANO (mapeia
+    // a um usuário). Crucialmente isto NÃO depende de presença ao vivo — que não é
+    // reproduzível — para que o resume tome a mesma decisão e reaplique o
+    // resultado persistido (a presença só decide QUEM cobra dentro da máquina:
+    // humano com prazo vs canto seedado). Ties só-IA seguem o AutoShootout do
+    // motor (determinístico pelo seed).
+    private static bool TieHasHuman(RunningTournament rt, KnockoutTie tie)
+        => rt.UserByTeamId.ContainsKey(tie.HomeId) || rt.UserByTeamId.ContainsKey(tie.AwayId);
+
+    private static Player ToPlayer(EnginePlayer p) => new()
+    {
+        Id = p.Id, Name = p.Name, Pos = p.Pos, Age = p.Age, Overall = p.Overall,
+        Archetype = p.Archetype, Leader = p.Leader, Team = p.Team, Code = p.Code, Cup = p.Cup,
+    };
+
+    private sealed record ShootoutPersisted(
+        IReadOnlyList<ShootoutKick> Kicks, bool Decided, int PensHome, int PensAway, string? WinnerId);
+
+    /// <summary>Conduz a disputa de pênaltis de UMA tie: alterna cobranças
+    /// home/away, pede o canto ao humano conectado (ou sorteia seedado no
+    /// timeout/IA), o servidor resolve gol/defesa e PERSISTE cada cobrança. No
+    /// resume reaplica as cobranças persistidas e continua de onde parou — uma
+    /// disputa já concluída é reaplicada direto, sem perguntar de novo.</summary>
+    private async Task ResolveShootoutAsync(
+        string code, RunningTournament rt, KnockoutTie tie,
+        List<ShootoutEngine.Taker> homeTakers, double homeGk,
+        List<ShootoutEngine.Taker> awayTakers, double awayGk, CancellationToken ct)
+    {
+        GameConfig cfg = GameConfig.Default;
+        uint baseSeed = TournamentGenerator.MatchSeed(rt.T.Seed, tie.TieId);
+        string homeName = rt.T.Teams[tie.HomeId].DisplayName;
+        string awayName = rt.T.Teams[tie.AwayId].DisplayName;
+        Guid? homeUser = rt.UserByTeamId.TryGetValue(tie.HomeId, out Guid hu) ? hu : null;
+        Guid? awayUser = rt.UserByTeamId.TryGetValue(tie.AwayId, out Guid au) ? au : null;
+        if (homeTakers.Count == 0) homeTakers = new() { new("?", "?", 75) };
+        if (awayTakers.Count == 0) awayTakers = new() { new("?", "?", 75) };
+
+        var prog = new ShootoutProgress();
+        ShootoutPersisted? saved = await LoadShootoutAsync(code, tie.TieId);
+        if (saved is not null)
+            foreach (ShootoutKick k in saved.Kicks) prog.ApplyAndCheck(k, cfg.PK_ROUNDS);
+
+        ShootoutStateDto State(ShootoutKick? last, string? awaitSide, Guid? awaitUser, DateTimeOffset? deadline)
+            => new(tie.TieId, tie.HomeId, tie.AwayId, homeName, awayName, homeUser, awayUser, cfg.PK_ROUNDS,
+                prog.ScoreHome, prog.ScoreAway, prog.DotsHome, prog.DotsAway, prog.Sudden,
+                prog.Winner is not null, prog.Winner is null ? null : (prog.Winner == "home" ? tie.HomeId : tie.AwayId),
+                awaitSide, awaitUser, deadline, last);
+
+        rt.LiveShootouts[tie.TieId] = State(prog.Kicks.Count > 0 ? prog.Kicks[^1] : null, null, null, null);
+        await hub.Clients.Group(code).SendAsync(ShootoutStartedEvent, new
+        {
+            tieId = tie.TieId, homeId = tie.HomeId, awayId = tie.AwayId,
+            homeName, awayName, homeUserId = homeUser, awayUserId = awayUser, rounds = cfg.PK_ROUNDS,
+        }, ct);
+        await hub.Clients.Group(code).SendAsync(ShootoutStateEvent, rt.LiveShootouts[tie.TieId], ct);
+
+        // disputa já decidida (resume de uma disputa concluída): reaplica e encerra
+        if (prog.Winner is not null)
+        {
+            await FinishShootoutAsync(code, rt, tie, prog, ct);
+            return;
+        }
+
+        while (prog.Winner is null)
+        {
+            ct.ThrowIfCancellationRequested();
+            int idx = prog.NextIndex;
+            string side = prog.NextSide;
+            List<ShootoutEngine.Taker> takers = side == "home" ? homeTakers : awayTakers;
+            ShootoutEngine.Taker taker = takers[(side == "home" ? prog.KicksHome : prog.KicksAway) % takers.Count];
+            double gkOvr = side == "home" ? awayGk : homeGk;
+            var rng = new Rng(ShootoutEngine.KickSeed(baseSeed, idx));
+
+            Guid? kicker = side == "home" ? homeUser : awayUser;
+            string zone;
+            if (kicker is Guid uid && presence.IsOnline(code, uid) && mp.Value.ShootoutKickSeconds > 0)
+            {
+                DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(mp.Value.ShootoutKickSeconds);
+                var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                rt.ShootoutPending[tie.TieId] = new PendingKick(uid, side, idx, tcs);
+                rt.LiveShootouts[tie.TieId] = State(null, side, uid, deadline);
+                await hub.Clients.Group(code).SendAsync(ShootoutAwaitKickEvent, new
+                {
+                    tieId = tie.TieId, side, takerName = taker.Name, kickIndex = idx,
+                    awaitingUserId = uid, deadline,
+                }, ct);
+                Task done = await Task.WhenAny(tcs.Task,
+                    Task.Delay(TimeSpan.FromSeconds(mp.Value.ShootoutKickSeconds), ct));
+                string? picked = done == tcs.Task && tcs.Task.IsCompletedSuccessfully ? tcs.Task.Result : null;
+                rt.ShootoutPending.TryRemove(tie.TieId, out _);
+                zone = picked ?? ShootoutEngine.AiShoot(rng);   // timeout: canto seedado
+            }
+            else
+            {
+                zone = ShootoutEngine.AiShoot(rng);             // IA/desconectado/sem prazo: seedado
+            }
+
+            string gkZone = ShootoutEngine.AiGuess(rng, zone, cfg);
+            bool scored = ShootoutEngine.Scored(zone, gkZone, taker.Shooting, gkOvr, cfg, rng);
+            var kick = new ShootoutKick(idx, side, taker.Id, taker.Name, zone, gkZone,
+                ShootoutEngine.Outcome(scored, zone, gkZone), scored);
+            prog.ApplyAndCheck(kick, cfg.PK_ROUNDS);
+
+            // persiste a cobrança (replay fiel inclusive após crash no meio)
+            await SaveShootoutAsync(code, tie.TieId, prog, decided: false, winnerId: null);
+            rt.LiveShootouts[tie.TieId] = State(kick, null, null, null);
+            await hub.Clients.Group(code).SendAsync(ShootoutStateEvent, rt.LiveShootouts[tie.TieId], ct);
+        }
+
+        await FinishShootoutAsync(code, rt, tie, prog, ct);
+    }
+
+    private async Task FinishShootoutAsync(
+        string code, RunningTournament rt, KnockoutTie tie, ShootoutProgress prog, CancellationToken ct)
+    {
+        string winnerId = prog.Winner == "home" ? tie.HomeId : tie.AwayId;
+        var pens = new Score { Home = prog.ScoreHome, Away = prog.ScoreAway };
+        tie.WinnerId = winnerId;
+        rt.TieResults.TryGetValue(tie.TieId, out (Score Score, Score? Pens, string? WinnerId, bool Played) ex);
+        rt.TieResults[tie.TieId] = (ex.Score ?? new Score { Home = prog.ScoreHome, Away = prog.ScoreAway },
+            pens, winnerId, ex.Played);
+        await SaveShootoutAsync(code, tie.TieId, prog, decided: true, winnerId: winnerId);
+        rt.LiveShootouts.TryRemove(tie.TieId, out _);
+        await hub.Clients.Group(code).SendAsync(ShootoutFinishedEvent, new
+        {
+            tieId = tie.TieId, pensHome = pens.Home, pensAway = pens.Away, winnerId,
+        }, ct);
+    }
+
+    private async Task<ShootoutPersisted?> LoadShootoutAsync(string code, string tieId)
+    {
+        using IServiceScope scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Room? room = await db.Rooms.AsNoTracking().SingleOrDefaultAsync(r => r.Code == code);
+        if (room is null) return null;
+        ShootoutRecord? rec = await db.Shootouts.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.RoomId == room.Id && x.TieId == tieId);
+        if (rec is null) return null;
+        List<ShootoutKick> kicks;
+        try { kicks = JsonSerializer.Deserialize<List<ShootoutKick>>(rec.KicksJson) ?? new(); }
+        catch (JsonException) { kicks = new(); }
+        return new ShootoutPersisted(kicks, rec.Decided, rec.PensHome, rec.PensAway, rec.WinnerId);
+    }
+
+    private async Task SaveShootoutAsync(
+        string code, string tieId, ShootoutProgress prog, bool decided, string? winnerId)
+    {
+        using IServiceScope scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Room? room = await db.Rooms.SingleOrDefaultAsync(r => r.Code == code);
+        if (room is null) return;
+        ShootoutRecord? rec = await db.Shootouts
+            .SingleOrDefaultAsync(x => x.RoomId == room.Id && x.TieId == tieId);
+        string kicksJson = JsonSerializer.Serialize(prog.Kicks);
+        if (rec is null)
+        {
+            db.Shootouts.Add(new ShootoutRecord
+            {
+                Id = Guid.NewGuid(), RoomId = room.Id, TieId = tieId, KicksJson = kicksJson,
+                Decided = decided, PensHome = prog.ScoreHome, PensAway = prog.ScoreAway,
+                WinnerId = winnerId, UpdatedAt = DateTimeOffset.UtcNow,
+            });
+        }
+        else
+        {
+            rec.KicksJson = kicksJson;
+            rec.Decided = decided;
+            rec.PensHome = prog.ScoreHome;
+            rec.PensAway = prog.ScoreAway;
+            rec.WinnerId = winnerId;
+            rec.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        await db.SaveChangesAsync();
     }
 
     private TournamentSnapshotDto BuildSnapshot(RunningTournament rt)

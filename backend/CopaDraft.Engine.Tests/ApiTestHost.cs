@@ -43,6 +43,7 @@ public sealed class ApiTestHost : IDisposable
                     ["Mp:Speeds:super"] = "0",
                     ["Mp:InterRoundSeconds"] = "0",
                     ["Mp:RoundReadySeconds"] = "0",   // gate desligado nos testes de fluxo
+                    ["Mp:ShootoutKickSeconds"] = "0", // disputa interativa resolve seedada (sem espera)
                 };
                 if (overrides is not null)
                     foreach ((string k, string? v) in overrides) settings[k] = v;

@@ -247,8 +247,9 @@ public class LobbyHub(
         });
     }
 
-    /// <summary>Resync after (re)connecting mid-tournament: snapshot + your match.
-    /// Falls back to the persisted snapshot for finished/evicted tournaments.</summary>
+    /// <summary>Resync after (re)connecting mid-tournament: snapshot + your match
+    /// + disputas de pênaltis vivas. Falls back to the persisted snapshot for
+    /// finished/evicted tournaments.</summary>
     public async Task GetTournament(string code)
     {
         code = code.ToUpperInvariant();
@@ -258,6 +259,17 @@ public class LobbyHub(
         YourMatchDto? mine = orchestrator.YourMatch(code, UserId);
         if (mine is not null)
             await Clients.Caller.SendAsync(TournamentOrchestrator.YourMatchEvent, mine);
+        // disputa de pênaltis em andamento: o overlay é dirigido pelo estado
+        foreach (ShootoutStateDto st in orchestrator.LiveShootouts(code))
+            await Clients.Caller.SendAsync(TournamentOrchestrator.ShootoutStateEvent, st);
+    }
+
+    /// <summary>Canto escolhido pelo jogador numa cobrança da disputa de pênaltis
+    /// interativa (server-authoritative). Só vale na sua vez.</summary>
+    public Task ShootoutKick(string code, string tieId, string zone)
+    {
+        orchestrator.SubmitShootoutKick(code.ToUpperInvariant(), tieId, UserId, zone);
+        return Task.CompletedTask;
     }
 
     public async Task LeaveRoom(string code)

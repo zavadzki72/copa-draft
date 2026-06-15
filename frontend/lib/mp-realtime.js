@@ -10,6 +10,7 @@
     'RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'DraftTeams', 'LobbyError',
     'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
     'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished',
+    'ShootoutStarted', 'ShootoutState', 'ShootoutAwaitKick', 'ShootoutFinished',
   ];
 
   let conn = null;

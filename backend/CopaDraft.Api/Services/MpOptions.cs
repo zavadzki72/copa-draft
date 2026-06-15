@@ -70,4 +70,8 @@ public sealed class MpOptions
     /// <summary>Ready-gate antes de cada rodada: ela só começa quando todos os
     /// humanos vivos/conectados clicam "iniciar" — ou após este timeout.</summary>
     public int RoundReadySeconds { get; set; } = 60;
+
+    /// <summary>Disputa de pênaltis interativa: tempo para o humano escolher o
+    /// canto de cada cobrança. Esgotado, o servidor sorteia um canto (seedado).</summary>
+    public int ShootoutKickSeconds { get; set; } = 15;
 }

@@ -54,6 +54,13 @@ public sealed class GameConfig
     public double MAN_DOWN_ATK { get; init; } = 0.82;
     public double MAN_DOWN_DEF { get; init; } = 0.86;
 
+    // ---------- Penalty shootout (interactive) — mirror de config.js ----------
+    // Só os valores efetivamente usados pela disputa server-authoritative; as
+    // fórmulas de gol/defesa replicam os literais do solo (ui/penalty.jsx).
+    public int PK_ROUNDS { get; init; } = 5;          // série inicial antes da morte súbita
+    public double PK_SAVE_BASE { get; init; } = 0.55; // defesa quando o goleiro acerta o lado
+    public double PK_AI_READ { get; init; } = 0.30;   // o quanto o goleiro "lê" o canto do cobrador
+
     // ---------- Campaign consequences (mirror de config.js) ----------
     public int SUSPENSION_MATCHES { get; init; } = 1;   // vermelho suspende N jogos
     public int INJURY_PHASES_MIN { get; init; } = 1;    // lesão tira MIN..MAX fases

@@ -205,7 +205,8 @@ ok('elim: vencedor segue vivo', info.eliminated === false);
   // o jogador no pós-jogo (bug real de 2026-06-10)
   const SERVER_EVENTS = ['RoomState', 'DraftStarted', 'DraftProgress', 'DraftComplete', 'DraftTeams', 'LobbyError',
     'TournamentState', 'RoundReady', 'RoundReadyProgress', 'RoundStarted',
-    'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished'];
+    'YourMatch', 'WatchMatch', 'MinuteTick', 'MatchFinished', 'TournamentFinished',
+    'ShootoutStarted', 'ShootoutState', 'ShootoutAwaitKick', 'ShootoutFinished'];
   const missing = SERVER_EVENTS.filter(e => typeof handlers[e] !== 'function');
   ok('rt: todos os eventos do servidor estão assinados (' + SERVER_EVENTS.length + ')', missing.length === 0
     || (console.error('faltando: ' + missing.join(', ')), false));

@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Participant> Participants => Set<Participant>();
     public DbSet<SubmittedTeam> Teams => Set<SubmittedTeam>();
     public DbSet<TournamentRecord> Tournaments => Set<TournamentRecord>();
+    public DbSet<ShootoutRecord> Shootouts => Set<ShootoutRecord>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -35,5 +36,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
 
         b.Entity<TournamentRecord>(e => e.HasIndex(x => x.RoomId).IsUnique());
+
+        b.Entity<ShootoutRecord>(e =>
+        {
+            e.HasIndex(x => new { x.RoomId, x.TieId }).IsUnique();
+            e.Property(x => x.TieId).HasMaxLength(64);
+        });
     }
 }

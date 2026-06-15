@@ -93,3 +93,27 @@ public class TournamentRecord
     public string? ChampionTeamId { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
+
+/// <summary>
+/// Resultado de uma disputa de pênaltis INTERATIVA de uma tie do mata-mata.
+/// Diferente do resto do torneio, uma disputa decidida por humano NÃO é
+/// reproduzível pelo seed — então é persistida cobrança a cobrança e
+/// REAPLICADA no resume (em vez de re-simular/re-perguntar), senão um restart
+/// trocaria o vencedor da fase. <see cref="KicksJson"/> guarda a sequência
+/// completa para replay fiel inclusive após um crash no meio da disputa.
+/// </summary>
+public class ShootoutRecord
+{
+    public Guid Id { get; set; }
+    public Guid RoomId { get; set; }
+    /// <summary>Id da tie do mata-mata (chave junto de RoomId).</summary>
+    public required string TieId { get; set; }
+    /// <summary>JSON da lista ordenada de cobranças (canto/defesa/resultado).</summary>
+    public required string KicksJson { get; set; }
+    /// <summary>True quando a disputa terminou (placar + vencedor finais).</summary>
+    public bool Decided { get; set; }
+    public int PensHome { get; set; }
+    public int PensAway { get; set; }
+    public string? WinnerId { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
