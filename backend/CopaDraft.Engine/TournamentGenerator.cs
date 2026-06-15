@@ -67,8 +67,11 @@ public static class TournamentGenerator
     public const int GroupCount = 8;
 
     /// <param name="humans">Human entries in deterministic order (join order).</param>
+    /// <param name="aiStrengthTarget">Force das seleções de IA (0..1) do nível da
+    /// sala; null = alvo padrão da fase de grupos (PHASE_STRENGTH["grupos"]).</param>
     public static GeneratedTournament Generate(
-        IReadOnlyList<TeamEntry> humans, uint seed, GameConfig c, IReadOnlyList<Squad>? pool = null)
+        IReadOnlyList<TeamEntry> humans, uint seed, GameConfig c,
+        IReadOnlyList<Squad>? pool = null, double? aiStrengthTarget = null)
     {
         if (humans.Count < 2)
             throw new ArgumentException("Torneio exige pelo menos 2 jogadores.", nameof(humans));
@@ -83,7 +86,7 @@ public static class TournamentGenerator
 
         // AI fill: one 'grupos'-phase draw per empty slot (distinct squads)
         List<Squad> aiSquads = TeamHelpers.DrawScaledSquads(
-            rng, Enumerable.Repeat("grupos", aiNeeded).ToList(), new HashSet<string>(), pool, c);
+            rng, Enumerable.Repeat("grupos", aiNeeded).ToList(), new HashSet<string>(), pool, c, aiStrengthTarget);
         var aiEntries = aiSquads.Select(sq => new TeamEntry
         {
             Id = "ai:" + sq.Id, IsHuman = false, DisplayName = sq.Team + " " + sq.Cup,

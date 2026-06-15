@@ -76,6 +76,16 @@ public static class TeamHelpers
     public static List<Squad> DrawScaledSquads(
         Rng rng, IReadOnlyList<string> phaseKeys, ISet<string> excludeIds,
         IReadOnlyList<Squad> pool, GameConfig c)
+        => DrawScaledSquads(rng, phaseKeys, excludeIds, pool, c, null);
+
+    /// <summary>
+    /// As DrawScaledSquads, but <paramref name="targetOverride"/> (0..1), when
+    /// given, replaces every phase key's strength target — used by the MP room
+    /// "level" so all AI fill is drawn toward one difficulty target.
+    /// </summary>
+    public static List<Squad> DrawScaledSquads(
+        Rng rng, IReadOnlyList<string> phaseKeys, ISet<string> excludeIds,
+        IReadOnlyList<Squad> pool, GameConfig c, double? targetOverride)
     {
         double bias = c.OPP_STRENGTH_BIAS;
         var avgById = new Dictionary<string, double>();
@@ -95,7 +105,8 @@ public static class TeamHelpers
         foreach (string key in phaseKeys)
         {
             if (avail.Count == 0) avail = pool.ToList();
-            double target = c.PHASE_STRENGTH.TryGetValue(key, out double t) ? t : 0.5;
+            double target = targetOverride
+                ?? (c.PHASE_STRENGTH.TryGetValue(key, out double t) ? t : 0.5);
             var items = avail.Select(sq => (Item: sq, W: Math.Exp(-bias * Math.Abs(TOf(sq) - target)))).ToList();
             Squad pick = rng.Weighted(items);
             chosen.Add(pick);

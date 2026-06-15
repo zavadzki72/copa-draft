@@ -35,6 +35,25 @@ public sealed class MpOptions
     public int PaceFor(string? speed)
         => speed is not null && Speeds.TryGetValue(speed, out int ms) ? ms : PaceMsPerMinute;
 
+    /// <summary>Níveis selecionáveis no lobby (nome → alvo de força 0..1 das
+    /// seleções de IA que preenchem a copa). Quanto maior o alvo, mais fortes e
+    /// conhecidas as seleções adversárias. 'normal' espelha o antigo alvo da
+    /// fase de grupos (PHASE_STRENGTH["grupos"] = 0.12).</summary>
+    public Dictionary<string, double> Levels { get; set; } = new()
+    {
+        ["facil"] = 0.05,    // seleções fracas/obscuras
+        ["normal"] = 0.12,   // equilíbrio (comportamento padrão anterior)
+        ["dificil"] = 0.45,  // seleções fortes
+        ["lenda"] = 0.80,    // os gigantes históricos
+    };
+
+    public string DefaultLevel { get; set; } = "normal";
+
+    /// <summary>Alvo de força das seleções de IA para o nível, ou null (cai no
+    /// alvo da fase de grupos) quando o nível é desconhecido.</summary>
+    public double? AiStrengthTargetFor(string? level)
+        => level is not null && Levels.TryGetValue(level, out double t) ? t : null;
+
     /// <summary>Pause between rounds so players can read tables/bracket.</summary>
     public int InterRoundSeconds { get; set; } = 5;
 

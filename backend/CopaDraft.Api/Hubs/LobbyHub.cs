@@ -123,6 +123,22 @@ public class LobbyHub(
         }
     }
 
+    /// <summary>Nível/dificuldade da sala (anfitrião, no lobby) — define a força
+    /// das seleções de IA que preenchem a copa; vale pro torneio todo.</summary>
+    public async Task SetRoomLevel(string code, string level)
+    {
+        code = code.ToUpperInvariant();
+        try
+        {
+            RoomStateDto state = await rooms.SetLevelAsync(code, UserId, level);
+            await Clients.Group(code).SendAsync(RoomStateEvent, state);
+        }
+        catch (RoomServiceException e)
+        {
+            await Clients.Caller.SendAsync(ErrorEvent, e.Message);
+        }
+    }
+
     /// <summary>"Terminei de assistir" — quando todos os humanos da rodada
     /// terminam/pulam, o servidor resolve o resto da rodada na hora.</summary>
     public Task DoneWatching(string code)

@@ -32,6 +32,9 @@ public class Room
     public DateTimeOffset? DraftDeadline { get; set; }
     /// <summary>Velocidade do ticker escolhida no lobby (normal|rapido|super).</summary>
     public string Speed { get; set; } = "rapido";
+    /// <summary>Nível (dificuldade) escolhido no lobby: controla a força das
+    /// seleções de IA que preenchem a copa (facil|normal|dificil|lenda).</summary>
+    public string Level { get; set; } = "normal";
 
     public List<Participant> Participants { get; set; } = new();
 }

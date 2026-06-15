@@ -187,7 +187,7 @@ function MpMenu({ user, busy, error, onCreate, onJoin, onLogout, onExit }) {
   );
 }
 
-function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
+function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed, onLevel }) {
   const me = room.players.find(p => p.userId === meId);
   const isHost = room.hostUserId === meId;
   const readyCount = room.players.filter(p => p.ready).length;
@@ -228,6 +228,24 @@ function MpLobby({ room, meId, error, onReady, onStart, onLeave, onSpeed }) {
             <span className="mp-hint">{t('mp.lobby.byHost')}</span>
           </p>
         )}
+      </div>
+
+      <div className="setcard mp-speed">
+        <span className="lab">{t('mp.lobby.levelLab')}</span>
+        {isHost ? (
+          <Segmented value={room.level || 'normal'} onChange={onLevel} options={[
+            { id: 'facil', label: t('mp.lobby.levelEasy') },
+            { id: 'normal', label: t('mp.lobby.levelNormal') },
+            { id: 'dificil', label: t('mp.lobby.levelHard') },
+            { id: 'lenda', label: t('mp.lobby.levelLegend') },
+          ]} />
+        ) : (
+          <p className="p mp-speed-view">
+            {t('mp.lobby.' + ({ facil: 'levelEasy', normal: 'levelNormal', dificil: 'levelHard', lenda: 'levelLegend' }[room.level] || 'levelNormal'))}
+            <span className="mp-hint">{t('mp.lobby.byHost')}</span>
+          </p>
+        )}
+        <p className="p mp-hint">{t('mp.lobby.levelHint')}</p>
       </div>
 
       <div className="mp-players">
@@ -642,6 +660,7 @@ function MultiplayerApp({ sfx, onExit, onStage }) {
       onReady={(r) => window.MPRT.invoke('SetReady', room.code, r).catch(() => {})}
       onStart={() => window.MPRT.invoke('StartDraft', room.code).catch(() => {})}
       onSpeed={(v) => window.MPRT.invoke('SetRoomSpeed', room.code, v).catch(() => {})}
+      onLevel={(v) => window.MPRT.invoke('SetRoomLevel', room.code, v).catch(() => {})}
       onLeave={leaveAll} />;
 
   if (stage === 'draft') {

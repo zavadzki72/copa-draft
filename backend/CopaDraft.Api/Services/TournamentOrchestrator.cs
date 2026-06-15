@@ -171,7 +171,9 @@ public sealed class TournamentOrchestrator(
             Side = DraftService.ToSide(p.Team!, p.User?.Name ?? "Jogador"),
         }).ToList();
 
-        GeneratedTournament t = TournamentGenerator.Generate(humans, (uint)room.Seed, GameConfig.Default);
+        GeneratedTournament t = TournamentGenerator.Generate(
+            humans, (uint)room.Seed, GameConfig.Default, pool: null,
+            aiStrengthTarget: mp.Value.AiStrengthTargetFor(room.Level));
         var rt = new RunningTournament
         {
             T = t,
