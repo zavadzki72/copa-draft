@@ -743,6 +743,11 @@
 .mp-advance-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px; }
 .mp-speed-view { color: var(--fg); font-size: .95rem; }
 
+/* seletor de era das seleções (range de copas) na home */
+.cup-range { display: flex; gap: 12px; }
+.cup-range label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fg3); font-family: var(--font-mono); flex: 1; }
+.cup-range select { padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--hairline); color: var(--fg1); font-size: 1rem; }
+
 /* ver times enviados (modal do draft) */
 .mp-team-card { border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); padding-bottom: 10px; }
 .mp-team-card:last-child { border-bottom: none; }

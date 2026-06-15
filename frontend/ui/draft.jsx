@@ -61,7 +61,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     rollTimer.current = setInterval(() => setDieValue(1 + Math.floor(Math.random() * 6)), 70);
     setTimeout(() => {
       clearInterval(rollTimer.current);
-      const candidates = window.SQUADS.filter(sq => window.TEAM.squadHasPickable(sq, slots, fills, takenIds));
+      const candidates = window.TEAM.squadPool().filter(sq => window.TEAM.squadHasPickable(sq, slots, fills, takenIds));
       let squad = null, players = [];
       if (candidates.length) {
         squad = weightedPickSquad(candidates);
@@ -110,7 +110,7 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
     let guard = 0;
     while (next.some(x => !x) && guard < 500) {
       guard++;
-      const candidates = window.SQUADS.filter(sq => window.TEAM.squadHasPickable(sq, slots, next, taken));
+      const candidates = window.TEAM.squadPool().filter(sq => window.TEAM.squadHasPickable(sq, slots, next, taken));
       if (!candidates.length) break;
       const squad = weightedPickSquad(candidates);
       const picks = window.TEAM.squadPickables(squad, slots, next, taken).filter(p => p.pickable);

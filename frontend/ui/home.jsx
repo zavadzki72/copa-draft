@@ -85,8 +85,12 @@ function MpButton({ hero, onClick }) {
   );
 }
 
-function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResume, profile, onStart, onHowTo, onMultiplayer }) {
+function HomeScreen({ mode, setMode, formation, setFormation, cupRange, setCupRange, canResume, onResume, profile, onStart, onHowTo, onMultiplayer }) {
   const t = (k, v) => window.I18N.t(k, v);
+  const cupYears = window.TEAM.cupYears();
+  const range = cupRange || { from: cupYears[0], to: cupYears[cupYears.length - 1] };
+  const setFrom = (y) => setCupRange && setCupRange({ from: y, to: Math.max(y, range.to) });
+  const setTo = (y) => setCupRange && setCupRange({ from: Math.min(y, range.from), to: y });
   const fHint = { '4-3-3': 'fOfensivo', '4-4-2': 'fEquilibrado', '3-5-2': 'fAlas', '4-5-1': 'fCauteloso', '5-3-2': 'fDefensivo', '3-4-3': 'fOusado' };
   const formationOpts = Object.keys(window.CONFIG.FORMATIONS).map(id => ({ id, label: id, hint: t('ui.home.' + (fHint[id] || 'fEquilibrado')) }));
   return (
@@ -161,6 +165,21 @@ function HomeScreen({ mode, setMode, formation, setFormation, canResume, onResum
         <div className="setcard">
           <span className="lab">{t('ui.home.formationLabel')}</span>
           <FormationSelect value={formation} onChange={setFormation} options={formationOpts} />
+        </div>
+        <div className="setcard">
+          <span className="lab">{t('ui.home.cupRangeLabel')}</span>
+          <div className="cup-range">
+            <label>{t('ui.home.cupFrom')}
+              <select value={range.from} onChange={e => setFrom(Number(e.target.value))}>
+                {cupYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </label>
+            <label>{t('ui.home.cupTo')}
+              <select value={range.to} onChange={e => setTo(Number(e.target.value))}>
+                {cupYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
       </div>
     </div>

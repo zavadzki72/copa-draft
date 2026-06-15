@@ -16,6 +16,18 @@
     return Math.round(top.reduce((s, p) => s + p.overall, 0) / top.length);
   }
 
+  // ----- SQUAD POOL (range de datas das copas) -----
+  // O draft e o sorteio de adversários leem squadPool() em vez de window.SQUADS
+  // direto, então um range de anos selecionado no pré-jogo filtra TODA a copa.
+  // null = pool cheio (todas as copas).
+  let _pool = null;
+  function setSquadPool(squads) { _pool = (squads && squads.length) ? squads : null; }
+  function squadPool() { return _pool || window.SQUADS; }
+  // anos de copa distintos, ordenados (p/ o seletor De/Até).
+  function cupYears() { return [...new Set((window.SQUADS || []).map(s => s.cup))].sort((a, b) => a - b); }
+  // seleções cujo ano da copa está em [from, to].
+  function poolInRange(from, to) { return (window.SQUADS || []).filter(s => s.cup >= from && s.cup <= to); }
+
   function byGroup(players) {
     const g = { GOL: [], ZAG: [], LAT: [], MEI: [], ATA: [] };
     players.forEach(p => g[p.pos].push(p));
@@ -132,14 +144,14 @@
     const C = config || window.CONFIG;
     const bias = C.DRAFT_STRENGTH_BIAS || 0;
     if (!bias) return 1;
-    const all = pool || window.SQUADS;
+    const all = pool || squadPool();
     const mean = all.reduce((s, sq) => s + squadAvg(sq), 0) / all.length;
     return Math.max(0.05, 1 + bias * (squadAvg(squad) - mean));
   }
 
   // pick N distinct opponent squads, ascending strength (ramping difficulty)
   function drawOpponents(rng, n) {
-    const shuffled = [...window.SQUADS];
+    const shuffled = [...squadPool()];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = rng.int(0, i);
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -173,7 +185,7 @@
   // rivals and knockout opponents from repeating (best-effort within the pool).
   function drawScaledOpponents(rng, phaseKeys, excludeIds, config) {
     const C = config || window.CONFIG;
-    const pool = window.SQUADS;
+    const pool = squadPool();
     const bias = C.OPP_STRENGTH_BIAS || 0;
     // precompute each squad's normalised strength (0..1) ONCE — the pool can be
     // large, so we must not recompute averages per weight lookup.
@@ -391,6 +403,7 @@
 
   window.TEAM = {
     withAttrs, squadAvg, byGroup, bestXI,
+    setSquadPool, squadPool, cupYears, poolInRange,
     draftSlots, slotLabel, eligible,
     slotAccepts, openSlotFor, squadStarterPool, squadPickables, squadHasPickable,
     squadDrawWeight,

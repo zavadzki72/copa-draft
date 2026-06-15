@@ -46,6 +46,11 @@ function App() {
   const [mpStage, setMpStage] = useState('menu'); // estágio interno do multiplayer (p/ o header)
   const [mode, setMode] = useState('classico');
   const [formation, setFormation] = useState('4-3-3');
+  // range de copas (pré-jogo): filtra quais seleções entram no draft/adversários
+  const [cupRange, setCupRange] = useState(() => {
+    const ys = window.TEAM.cupYears();
+    return { from: ys[0], to: ys[ys.length - 1] };
+  });
   const [sound, setSound] = useState(profile0.sound);
   const [speed, setSpeed] = useState(profile0.speed || C.MATCH_SPEED_DEFAULT);
   const [canResume, setCanResume] = useState(false);
@@ -97,7 +102,7 @@ function App() {
   }, []); // eslint-disable-line
 
   function snapshot() {
-    return { phase, mode, formation, team, fatigue, playerStatus, campaignStats, lineup,
+    return { phase, mode, formation, cupRange, team, fatigue, playerStatus, campaignStats, lineup,
       runSeed, group, groupRound, eliminatedInGroup,
       bracket, currentIdx, activeRound, oppXI, match, won, unlocked, history };
   }
@@ -105,6 +110,7 @@ function App() {
     const s = window.STORE.loadRun();
     if (!s) return;
     setMode(s.mode); setFormation(s.formation); setTeam(s.team);
+    if (s.cupRange) { setCupRange(s.cupRange); window.TEAM.setSquadPool(window.TEAM.poolInRange(s.cupRange.from, s.cupRange.to)); }
     setFatigue(s.fatigue || {}); setPlayerStatus(s.playerStatus || {});
     setCampaignStats(s.campaignStats || {});
     setLineup(s.lineup || { starters: [], bench: [] });
@@ -386,8 +392,9 @@ function App() {
         <HomeScreen mode={mode} setMode={setMode} formation={formation} setFormation={setFormation}
           canResume={canResume} onResume={resumeRun} profile={profile0}
           onHowTo={() => setShowHowTo(true)}
-          onStart={() => { window.SFX.prime(); reset(); setPhase('draft'); }}
-          onMultiplayer={() => { window.SFX.prime(); setPhase('mp'); }} />
+          cupRange={cupRange} setCupRange={setCupRange}
+          onStart={() => { window.SFX.prime(); window.TEAM.setSquadPool(window.TEAM.poolInRange(cupRange.from, cupRange.to)); reset(); setPhase('draft'); }}
+          onMultiplayer={() => { window.SFX.prime(); window.TEAM.setSquadPool(null); setPhase('mp'); }} />
       )}
 
       {phase === 'mp' && (
