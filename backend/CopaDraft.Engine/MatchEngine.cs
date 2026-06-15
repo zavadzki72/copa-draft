@@ -110,9 +110,14 @@ public static class MatchEngine
         return w;
     }
 
-    /// <summary>Mirror of expectedGoals().</summary>
+    /// <summary>Mirror of expectedGoals() — com teto/piso de λ (corta goleadas).</summary>
     public static double ExpectedGoals(double atk, double def, double day, GameConfig c, double scale)
-        => c.BASE_LAMBDA * Math.Pow((atk * day) / def, c.LAMBDA_EXP) * scale;
+    {
+        double lam = c.BASE_LAMBDA * Math.Pow((atk * day) / def, c.LAMBDA_EXP);
+        lam = Math.Min(c.LAMBDA_MAX, lam);
+        lam = Math.Max(c.LAMBDA_MIN, lam);
+        return lam * scale;
+    }
 
     private static string GkName(P? gk) => gk is not null ? gk.Name : Narration.Pt.T("gkFallback");
 
@@ -156,7 +161,10 @@ public static class MatchEngine
                 string opp = side == "home" ? "away" : "home";
                 double curAtk = s.BaseAtk[side] * Math.Pow(c.MAN_DOWN_ATK, s.ManDown[side]);
                 double curDef = s.BaseDef[opp] * Math.Pow(c.MAN_DOWN_DEF, s.ManDown[opp]);
-                double rate = ExpectedGoals(curAtk, curDef, s.Day[side], c, scale) / periodLen;
+                // "administra o resultado": quem lidera reduz o ritmo (menos goleadas)
+                int lead = (side == "home" ? s.Score.Home - s.Score.Away : s.Score.Away - s.Score.Home);
+                double ease = lead > 0 ? Math.Max(c.LEAD_EASE_FLOOR, 1 - c.LEAD_EASE * lead) : 1.0;
+                double rate = ExpectedGoals(curAtk, curDef, s.Day[side], c, scale) * ease / periodLen;
                 if (!rng.Chance(rate)) continue;
 
                 Dictionary<string, List<P>> g = s.Sides[side].G;

@@ -199,19 +199,18 @@ function GameHeader({ phase, hasTeam, round, sound, onToggleSound, theme, onTogg
 }
 
 /* a player tile used in the draft pool */
-function PlayerTile({ p, picked, isStar, disabled, mode, revealRatings = true, note, onClick }) {
+function PlayerTile({ p, picked, isStar, disabled, mode, revealRatings = true, onClick }) {
   // almanaque esconde sempre; medium esconde até o jogador gastar um "ver overs"
   // (revealRatings); clássico mostra sempre.
   const hideRatings = mode === 'almanaque' || (mode === 'medium' && !revealRatings);
   return (
     <button
-      className={`ptile ${picked ? 'picked' : ''} ${isStar ? 'star' : ''} ${disabled ? 'dim' : 'pickable'}`}
+      className={`ptile ${picked ? 'picked' : ''} ${isStar ? 'star' : ''} ${disabled ? 'dim' : ''}`}
       onClick={onClick} disabled={disabled} aria-pressed={picked}
     >
       <div className="ptile-top">
         <Flag code={p.code} />
         <span className="nm">{p.name}</span>
-        {note && <span className="taken-tag">{note}</span>}
         {!hideRatings && <span className={`ovr ${ovrClass(p.overall)}`}>{p.overall}</span>}
       </div>
       <div className="ptile-sub">
@@ -219,7 +218,6 @@ function PlayerTile({ p, picked, isStar, disabled, mode, revealRatings = true, n
         <span>{window.I18N.t('ui.common.age', { n: p.age })}</span>
         {p.leader && <span className="lead-tag">{window.I18N.t('ui.common.leader')}</span>}
         {isStar && <span className="star-tag">{window.I18N.t('ui.common.star')}</span>}
-        {!disabled && <span className="pick-cta">{window.I18N.t('ui.draft.pickCta')}</span>}
       </div>
       <AttrBars attrs={p.attrs} masked={hideRatings} />
     </button>

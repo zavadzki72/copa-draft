@@ -128,23 +128,12 @@
 .shead .meta { font-family: var(--font-mono); color: var(--fg3); font-size: 13px; }
 
 /* ---------- PLAYER TILE (draft pool) ---------- */
-/* draft: jogadores sorteados agrupados por posição */
-.pool-group { margin-bottom: 16px; }
-.pool-group.done { opacity: .5; }
-.pool-grp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 2px 8px; padding-bottom: 5px; border-bottom: 1px solid var(--hairline); }
-.pool-grp-head .pg-pos { font-weight: 800; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); }
-.pool-grp-head .pg-state { font-family: var(--font-mono); font-size: 11px; color: var(--fg3); }
-.pool-group.done .pg-state { color: var(--green-bright); }
-.poolcols { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 12px; }
+.poolcols { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 14px; }
 .ptile { display: flex; flex-direction: column; gap: 10px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 13px 14px; cursor: pointer; transition: all .25s var(--ease-smooth); text-align: left; color: var(--fg1); }
-.ptile.pickable { border-color: rgba(0,168,89,.35); }
-.ptile.pickable:hover { border-color: var(--green); transform: translateY(-3px); box-shadow: var(--shadow-card); }
+.ptile:hover { border-color: rgba(0,168,89,.45); transform: translateY(-3px); box-shadow: var(--shadow-card); }
 .ptile.picked { border-color: var(--green); background: linear-gradient(145deg, rgba(0,168,89,.12), var(--surface-2)); }
 .ptile.star { border-color: var(--yellow); }
-.ptile.dim { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
-.ptile.dim:hover { transform: none; box-shadow: none; border-color: var(--hairline); }
-.ptile .taken-tag { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--fg3); background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 20px; padding: 2px 8px; }
-.ptile .pick-cta { margin-left: auto; font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--green-bright); }
+.ptile.dim { opacity: .4; }
 .ptile-top { display: flex; align-items: center; gap: 10px; }
 .ptile-top .fi { width: 26px !important; height: 18px; }
 .ptile .nm { font-weight: 600; font-size: 1rem; line-height: 1.2; flex: 1; color: var(--fg1); }

@@ -9,9 +9,13 @@ namespace CopaDraft.Engine;
 public sealed class GameConfig
 {
     // ---------- Match engine ----------
-    public double BASE_LAMBDA { get; init; } = 1.35;
-    public double LAMBDA_EXP { get; init; } = 1.85;  // maior = força pesa mais, menos zebra
-    public double ZEBRA_Z { get; init; } = 0.14;     // menor = menos zebra (amplitude do fator "dia")
+    public double BASE_LAMBDA { get; init; } = 0.95;  // menor = placares mais justos/baixos
+    public double LAMBDA_EXP { get; init; } = 3.0;    // maior = força pesa mais, menos zebra
+    public double ZEBRA_Z { get; init; } = 0.04;      // quase removido → o forte decide
+    public double LAMBDA_MIN { get; init; } = 0.20;   // piso do λ por time (azarão ainda marca)
+    public double LAMBDA_MAX { get; init; } = 2.3;    // teto do λ por time (corta goleadas)
+    public double LEAD_EASE { get; init; } = 0.12;    // −12% no λ/min por gol de vantagem
+    public double LEAD_EASE_FLOOR { get; init; } = 0.45; // piso desse fator
     public int MINUTES { get; init; } = 90;
     public int ET_MINUTES { get; init; } = 30;
     public double ET_LAMBDA_SCALE { get; init; } = 30.0 / 90.0;
@@ -63,7 +67,7 @@ public sealed class GameConfig
         };
 
     public IReadOnlyList<string> BENCH_GROUPS { get; init; } = new[] { "GOL", "ZAG", "LAT", "MEI", "ATA" };
-    public int BENCH_MIN { get; init; } = 4;
+    public int BENCH_MIN { get; init; } = 5;
 
     // ---------- Knockout rounds ----------
     public IReadOnlyList<Round> ROUNDS { get; init; } = new[]

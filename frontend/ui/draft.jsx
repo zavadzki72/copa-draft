@@ -338,27 +338,13 @@ function DraftScreen({ formation, mode, sfx, onConfirm }) {
                 {MAX_REROLL === 0 && (
                   <p className="rp-hint" style={{ margin: '0 0 12px', fontSize: 13 }}>{t('ui.draft.almanacNote')}</p>
                 )}
-                {['GOL', 'ZAG', 'LAT', 'MEI', 'ATA'].map(pos => {
-                  const grp = drawn.players.filter(p => p.pos === pos);
-                  if (!grp.length) return null;
-                  const open = window.TEAM.openSlotFor(slots, fills, pos) >= 0;
-                  return (
-                    <div className={`pool-group ${open ? '' : 'done'}`} key={pos}>
-                      <div className="pool-grp-head">
-                        <span className="pg-pos">{t('pos.' + pos)}</span>
-                        <span className="pg-state">{open ? t('ui.draft.posOpen') : t('ui.draft.posFull')}</span>
-                      </div>
-                      <div className="poolcols">
-                        {grp.map(p => (
-                          <PlayerTile key={p.id} p={p} mode={mode} revealRatings={peeked}
-                            picked={false} isStar={false} disabled={!p.pickable}
-                            note={takenIds.has(p.id) ? t('ui.draft.tileTaken') : null}
-                            onClick={() => pick(p)} />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                <div className="poolcols">
+                  {drawn.players.map(p => (
+                    <PlayerTile key={p.id} p={p} mode={mode} revealRatings={peeked}
+                      picked={false} isStar={false} disabled={!p.pickable}
+                      onClick={() => pick(p)} />
+                  ))}
+                </div>
               </div>
             )}
           </div>

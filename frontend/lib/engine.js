@@ -87,7 +87,10 @@
   }
 
   function expectedGoals(atk, def, day, C, scale) {
-    return C.BASE_LAMBDA * Math.pow((atk * day) / def, C.LAMBDA_EXP) * scale;
+    let lam = C.BASE_LAMBDA * Math.pow((atk * day) / def, C.LAMBDA_EXP);
+    if (C.LAMBDA_MAX != null) lam = Math.min(C.LAMBDA_MAX, lam);   // teto: corta goleadas
+    if (C.LAMBDA_MIN != null) lam = Math.max(C.LAMBDA_MIN, lam);   // piso: azarão ainda marca
+    return lam * scale;
   }
 
   // simulate one continuous period; mutates score/events/stats/cards/sentOff/manDown.
@@ -103,7 +106,11 @@
         const opp = side === 'home' ? 'away' : 'home';
         const curAtk = base.atk[side] * Math.pow(C.MAN_DOWN_ATK, manDown[side]);
         const curDef = base.def[opp] * Math.pow(C.MAN_DOWN_DEF, manDown[opp]);
-        const rate = expectedGoals(curAtk, curDef, day[side], C, scale) / periodLen;
+        // "administra o resultado": quem está na frente reduz o ritmo → menos
+        // goleadas e derrotas de favorito por placar apertado.
+        const lead = score[side] - score[opp];
+        const ease = lead > 0 ? Math.max(C.LEAD_EASE_FLOOR, 1 - C.LEAD_EASE * lead) : 1;
+        const rate = expectedGoals(curAtk, curDef, day[side], C, scale) * ease / periodLen;
         if (rng.chance(rate)) {
           const g = sides[side].g;
           const sw = scorerWeights(g);

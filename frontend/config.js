@@ -5,9 +5,13 @@
    ============================================================ */
 window.CONFIG = {
   /* ---------- Match engine ---------- */
-  BASE_LAMBDA: 1.35,      // base expected goals scalar
-  LAMBDA_EXP: 1.85,       // attack/defense ratio exponent (maior = força pesa mais, menos zebra)
-  ZEBRA_Z: 0.14,          // "dia" form multiplier amplitude: day = 1 + rand(-z,+z) (menor = menos zebra)
+  BASE_LAMBDA: 0.95,      // base expected goals scalar (menor = placares mais justos/baixos)
+  LAMBDA_EXP: 3.0,        // attack/defense ratio exponent (maior = força pesa mais, menos zebra)
+  ZEBRA_Z: 0.04,          // "dia" form: day = 1 + rand(-z,+z). Quase removido → o forte decide
+  LAMBDA_MIN: 0.20,       // piso do λ por time (o azarão ainda pode marcar)
+  LAMBDA_MAX: 2.3,        // teto do λ por time (corta goleadas: nada de λ 3+)
+  LEAD_EASE: 0.12,        // a cada gol de vantagem, o time "administra" (−12% no λ por minuto)
+  LEAD_EASE_FLOOR: 0.45,  // piso desse fator (mesmo goleando, não zera o ataque)
   MINUTES: 90,            // regulation minutes
   ET_MINUTES: 30,         // extra time total (15 + 15)
   ET_LAMBDA_SCALE: 30 / 90, // expected-goals scaling for the shorter ET period
@@ -95,16 +99,17 @@ window.CONFIG = {
     '3-4-3': { GOL: 1, ZAG: 3, LAT: 0, MEI: 4, ATA: 3 },
   },
 
-  /* bench: one reserve per position group, min 4 */
+  /* bench: one reserve per position group, min 5 */
   BENCH_GROUPS: ['GOL', 'ZAG', 'LAT', 'MEI', 'ATA'],
-  BENCH_MIN: 4,
+  BENCH_MIN: 5,
 
   /* ---------- Draft (dice rolls per slot) ---------- */
   TEAM_NAME: 'Time dos Sonhos',
-  // bench slots drafted after the XI — one reserve per group (min 4)
+  // bench slots drafted after the XI — one reserve per group (min 5)
   DRAFT_BENCH: [
     { pos: 'GOL' },
     { pos: 'DEF', allow: ['ZAG', 'LAT'] },
+    { pos: 'LAT' },
     { pos: 'MEI' },
     { pos: 'ATA' },
   ],

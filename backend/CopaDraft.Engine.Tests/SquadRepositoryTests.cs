@@ -63,8 +63,8 @@ public class GameConfigTests
     public void Default_Mirrors_Key_ConfigJs_Values()
     {
         GameConfig c = GameConfig.Default;
-        Assert.Equal(1.35, c.BASE_LAMBDA);
-        Assert.Equal(1.85, c.LAMBDA_EXP);
+        Assert.Equal(0.95, c.BASE_LAMBDA);
+        Assert.Equal(3.0, c.LAMBDA_EXP);
         Assert.Equal(90, c.MINUTES);
         Assert.Equal(30, c.ATTR_MIN);
         Assert.Equal(99, c.ATTR_MAX);

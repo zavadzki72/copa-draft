@@ -26,7 +26,7 @@ public sealed record SubmittedTeamDto(
 /// </summary>
 public sealed class DraftService(AppDbContext db)
 {
-    private static readonly string[] BenchSlots = { "GOL", "DEF", "MEI", "ATA" }; // mirrors CONFIG.DRAFT_BENCH
+    private static readonly string[] BenchSlots = { "GOL", "DEF", "LAT", "MEI", "ATA" }; // mirrors CONFIG.DRAFT_BENCH
     private static readonly string[] DefAllow = { "ZAG", "LAT" };
 
     public async Task SubmitAsync(string code, Guid userId, SubmitTeamRequest req, CancellationToken ct = default)

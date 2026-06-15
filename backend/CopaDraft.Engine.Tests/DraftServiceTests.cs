@@ -127,7 +127,7 @@ public class DraftServiceTests : IDisposable
         // a valid engine side can be built from it
         SideInput side = DraftService.ToSide(team, "Guest");
         Assert.Equal(11, side.Starters.Count);
-        Assert.Equal(4, side.Bench.Count);
+        Assert.Equal(5, side.Bench.Count);
 
         // determinístico: mesmo seed da sala -> mesmo time
         Room room = _db.Rooms.Single();
